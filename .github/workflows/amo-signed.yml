@@ -1,0 +1,68 @@
+name: Attach AMO-signed xpi to release
+
+# Mozilla signs the package only after the AMO review is approved, so the
+# signed xpi cannot exist at tag-push time. This workflow polls the AMO
+# review status and, once the file is public (signed), attaches it to the
+# matching GitHub Release so users can install it on any Firefox without
+# xpinstall.signatures.required.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.2.1); defaults to the latest release"
+        required: false
+  schedule:
+    - cron: "23 3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  attach-signed-xpi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attach signed xpi when the AMO review is approved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
+          AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.tag }}"
+          if [ -z "$tag" ]; then
+            tag="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 \
+              --json tagName,isLatest --jq '.[] | select(.isLatest) | .tagName')"
+          fi
+          echo "release tag: $tag"
+          version="${tag#v}"
+          # AMO expects an HS256 JWT issued from the API key pair.
+          b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+          now="$(date +%s)"
+          jti="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+          header="$(printf '{"alg":"HS256","typ":"JWT"}' | b64url)"
+          payload="$(printf '{"iss":"%s","jti":"%s","iat":%s,"exp":%s}' \
+            "$AMO_API_KEY" "$jti" "$now" "$((now + 300))" | b64url)"
+          sig="$(printf '%s.%s' "$header" "$payload" \
+            | openssl dgst -sha256 -hmac "$AMO_API_SECRET" -binary | b64url)"
+          auth="Authorization: JWT ${header}.${payload}.${sig}"
+          base="https://addons.mozilla.org/api/v5"
+          guid="biliwebandroidstream%40example.invalid"
+          curl -sS -H "$auth" "$base/addons/addon/${guid}/versions/${version}/" > "ver-${version}.json"
+          file_status="$(python3 -c "import json;print(json.load(open('ver-${version}.json'))['file']['status'])")"
+          if [ "$file_status" != "public" ]; then
+            echo "AMO file status is '${file_status}' - signed xpi not available yet"
+            exit 0
+          fi
+          url="$(python3 -c "import json;print(json.load(open('ver-${version}.json'))['file']['url'])")"
+          out="BiliWebAndroidStream-v${version}-signed.xpi"
+          curl -sSL -H "$auth" "$url" -o "$out"
+          # A signed package must be a valid add-on zip carrying Mozilla's
+          # signature files under META-INF/.
+          python3 -c 'import sys,zipfile; n=zipfile.ZipFile(sys.argv[1]).namelist(); assert "manifest.json" in n and any(x.startswith("META-INF/") for x in n), "package missing or unsigned"' "$out"
+          mkdir -p rel
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir rel --clobber --pattern '*.xpi'
+          cp "$out" rel/
+          sha256sum rel/*.xpi > rel/SHA256SUMS
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber rel/*
+          echo "attached ${out} to ${tag}"
