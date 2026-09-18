@@ -24,6 +24,7 @@ only the supported token fields.
 {"request_id":"7","type":"qr_poll"}
 {"request_id":"8","type":"refresh_token"}
 {"request_id":"9","type":"resolve_play_url","bvid":"BV...","aid":1234,"cid":123,"qn":112,"fnval":4048,"fourk":true}
+{"request_id":"10","type":"uninstall"}
 ```
 
 `set_token` accepts a flat Android token object or a `data`, `token`,
@@ -70,3 +71,16 @@ token flow after the user confirms on the phone.
 also refreshes automatically when the stored token is within one minute of
 expiry and has a refresh token. A rotated refresh token is persisted together
 with the new access token.
+
+`uninstall` lets the extension uninstall the helper itself: it removes the
+native messaging host registration (the manifest file, and the Windows
+registry key on Windows), the stored token state directory, and the helper
+installation directory. The response reports which parts were removed:
+
+```json
+{"request_id":"10","type":"uninstalled","manifest_removed":true,"token_removed":true,"binary_removed":true}
+```
+
+On Windows the running binary cannot delete its own image, so it renames
+itself and schedules a detached cleanup command that finishes a few seconds
+later; `binary_removed` is still reported as `true` in that case.

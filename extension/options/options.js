@@ -7,7 +7,6 @@ const status = document.getElementById("status");
 const qrBox = document.getElementById("qr-box");
 const qrImage = document.getElementById("qr-image");
 const RELEASES_URL = "https://github.com/Ujhhgtg/BiliWebAndroidStream/releases/latest";
-const INSTALL_DOC_URL = "https://github.com/Ujhhgtg/BiliWebAndroidStream/blob/main/docs/helper-install.md";
 const NATIVE_TIMEOUT_MS = 12_000;
 let qrPolling = false;
 let statusRun = 0;
@@ -134,7 +133,16 @@ document.getElementById("helper-refresh").addEventListener("click", (event) => r
   await refreshStatus(); show("Helper 和登录态检查完成。", "success");
 }));
 document.getElementById("install-helper").addEventListener("click", () => browser.tabs.create({ url: RELEASES_URL }));
-document.getElementById("uninstall-helper").addEventListener("click", () => browser.tabs.create({ url: `${INSTALL_DOC_URL}#uninstall` }));
+document.getElementById("uninstall-helper").addEventListener("click", (event) => runButton(event.currentTarget, "卸载中…", async () => {
+  if (!confirm("卸载将删除 native helper、它的注册信息以及保存的 Android 登录态。继续吗？")) return;
+  const report = await native("helper-uninstall");
+  await refreshStatus();
+  const state = (flag, yes, no) => (flag ? yes : no);
+  show(
+    `已卸载：注册文件${state(report.manifest_removed, "已删除", "未找到")}，登录态${state(report.token_removed, "已删除", "未找到")}，程序文件${state(report.binary_removed, "已删除", "将由系统在稍后自动清理")}。`,
+    "success"
+  );
+}));
 
 document.getElementById("qr-cancel").addEventListener("click", () => {
   qrPolling = false; qrBox.hidden = true; show("已取消二维码登录。");

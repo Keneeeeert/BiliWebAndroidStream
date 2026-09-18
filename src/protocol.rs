@@ -29,6 +29,7 @@ pub enum Command {
     QrPoll,
     RefreshToken,
     PlaybackAuth,
+    Uninstall,
     WebCookieLogin {
         sessdata: String,
         dede_user_id: String,
@@ -79,6 +80,11 @@ pub enum ResponseBody {
     TokenCleared,
     PlaybackAuth {
         authorization: String,
+    },
+    Uninstalled {
+        manifest_removed: bool,
+        token_removed: bool,
+        binary_removed: bool,
     },
     QrStarted {
         url: String,
@@ -156,6 +162,12 @@ mod tests {
             }
             _ => panic!("unexpected command"),
         }
+    }
+
+    #[test]
+    fn parses_uninstall_command() {
+        let envelope: RequestEnvelope = serde_json::from_str(r#"{"type":"uninstall"}"#).unwrap();
+        assert!(matches!(envelope.command, Command::Uninstall));
     }
 
     #[test]

@@ -4,6 +4,7 @@ mod playback;
 mod protocol;
 mod qr;
 mod token;
+mod uninstall;
 
 use std::io::{self, BufReader, BufWriter};
 
@@ -52,6 +53,7 @@ fn handle(
                 "qr".into(),
                 "playback".into(),
                 "refresh".into(),
+                "uninstall".into(),
             ],
         }),
         Command::Status => {
@@ -99,6 +101,17 @@ fn handle(
                 authorization: format!("identify_v1 {}", token.access_key()),
             })
             .ok_or(crate::error::HelperError::MissingToken),
+        Command::Uninstall => {
+            // The response is written by the main loop after this returns; the
+            // binary's own removal is either an unlink (Unix, harmless while
+            // running) or a delayed detached cleanup (Windows).
+            let report = crate::uninstall::run();
+            Ok(ResponseBody::Uninstalled {
+                manifest_removed: report.manifest_removed,
+                token_removed: report.token_removed,
+                binary_removed: report.binary_removed,
+            })
+        }
         Command::WebCookieLogin {
             sessdata,
             dede_user_id,

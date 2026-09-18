@@ -164,6 +164,12 @@ browser.runtime.onMessage.addListener((message, sender) => {
       .catch((error) => ({ ok: false, code: "token_refresh_failed", message: String(error) }));
   }
 
+  if (message.type === "helper-uninstall") {
+    return sendNative({ type: "uninstall" })
+      .then((response) => response || { ok: false, code: "empty_native_response" })
+      .catch((error) => ({ ok: false, code: "uninstall_failed", message: String(error) }));
+  }
+
   if (message.type === "playback-auth") {
     return sendNative({ type: "playback_auth" })
       .then((response) => {
