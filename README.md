@@ -4,7 +4,7 @@
 后台页内直接走 Android `PlayViewUnite` gRPC 拿到带签名的 DASH 流，再把安卓流
 拼接进官方网页响应交给播放器。
 
-已在 Firefox Nightly（Linux）上端到端验证：1080P 高码率、1080P 60 帧、4K
+已在 Firefox（Linux）上端到端验证：1080P 高码率、1080P 60 帧、4K
 （4096×2160）与 8K（7680×4320）均可播放和手动切换。
 
 ## 功能
@@ -21,24 +21,25 @@
 
 ## 安装
 
-1. 使用 [Firefox Nightly](https://www.mozilla.org/firefox/channel/desktop/#nightly)，
-   并在 `about:config` 中把 `xpinstall.signatures.required` 设为 `false`
-   （扩展未上架 AMO，正式版 Firefox 拒绝安装未签名扩展）。
-2. 从 [GitHub Releases](https://github.com/Ujhhgtg/BiliWebAndroidStream/releases)
-   下载 `BiliWebAndroidStream-firefox-vX.Y.Z.zip`。
-3. Firefox 打开 `about:addons` → 齿轮 → "从文件安装附加组件" 选择扩展 zip
-   （或临时加载用于试用）。
-4. 打开扩展首选项页，用哔哩哔哩手机客户端扫码完成 Android 登录。
-5. （重新）打开 Bilibili 视频页，即可在画质菜单选择高画质。
+1. 从 [GitHub Releases](https://github.com/Ujhhgtg/BiliWebAndroidStream/releases)
+   下载 `BiliWebAndroidStream-vX.Y.Z-signed.xpi`。这个包带 Mozilla 官方签名，
+   任何渠道的 Firefox 都能直接安装，无需 Nightly 或修改任何设置。
+   （`-unsigned.zip` 是给 AMO 审核和自行打包的人用的，普通用户不用下。）
+2. 把 xpi 拖进 Firefox 窗口，或 `about:addons` → 齿轮 → "从文件安装附加
+   组件" 选择该 xpi。
+3. 打开扩展首选项页，用哔哩哔哩手机客户端扫码完成 Android 登录。
+4. （重新）打开 Bilibili 视频页，即可在画质菜单选择高画质。
 
 ## 构建
 
 ```sh
-scripts/build.sh        # 打包扩展到 dist/BiliWebAndroidStream-firefox-v<版本>.zip
+scripts/build.sh        # 打包扩展到 dist/BiliWebAndroidStream-v<版本>-unsigned.zip
 ```
 
 CI（`.github/workflows/release.yml`）在推送 `v*` tag 时校验 JS 语法、核对
-版本号并发布 Release。扩展无构建依赖，zip 即源码。
+版本号并发布 Release：无签名包直接挂到 Release，同时上传 AMO unlisted 渠道
+自动签名；签名完成后另一个工作流把 `-signed.xpi` 挂回同一个 Release。
+扩展无构建依赖，包即源码。
 
 ## 架构与协议
 
