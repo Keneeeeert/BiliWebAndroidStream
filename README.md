@@ -2,7 +2,7 @@
 
 让 Firefox 网页播放器改用 Bilibili Android 端播放链路的项目：Firefox 扩展在
 后台页内直接走 Android `PlayViewUnite` gRPC 拿到带签名的 DASH 流，再把安卓流
-拼接进官方网页响应交给播放器。无需安装任何本机程序。
+拼接进官方网页响应交给播放器。
 
 已在 Firefox Nightly（Linux）上端到端验证：1080P 高码率、1080P 60 帧、4K
 （4096×2160）与 8K（7680×4320）均可播放和手动切换。
@@ -31,8 +31,6 @@
 4. 打开扩展首选项页，用哔哩哔哩手机客户端扫码完成 Android 登录。
 5. （重新）打开 Bilibili 视频页，即可在画质菜单选择高画质。
 
-卸载：直接在 `about:addons` 移除扩展即可，登录态随扩展存储一并删除。
-
 ## 构建
 
 ```sh
@@ -49,8 +47,7 @@ CI（`.github/workflows/release.yml`）在推送 `v*` tag 时校验 JS 语法、
   `DashBilibiliParser` 要求每条 representation 携带 MP4 `segment_base`
   字节范围，由后台向 CDN 发 Range 请求探测填充。
 - **content-bridge.js**（content script）：页面与后台之间的消息中转。
-- **background.js + native-api.js**（后台页）：native-api.js 是原 Rust
-  helper 的纯 JS 移植——TV 档扫码登录（`passport-tv-login/qrcode`）、
+- **background.js + native-api.js**（后台页）：TV 档扫码登录（`passport-tv-login/qrcode`）、
   oauth2 token 刷新（TV appkey 档参数 + `ts`）、`PlayViewUnite` gRPC
   （`grpc.biliapi.net`，5 字节 gRPC 帧 + base64 protobuf 元数据头，
   `identify_v1 <access_key>` 授权）；请求参数签名即
