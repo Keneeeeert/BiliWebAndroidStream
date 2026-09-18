@@ -117,6 +117,13 @@ jobs:
             echo "AMO validation failed for ${zip}" >&2
             exit 1
           fi
+          # Listed versions require add-on metadata (categories) to be set.
+          curl -sS -o /tmp/amo-addon.json -w '%{http_code}\n' \
+            -H "$auth" \
+            -H "Content-Type: application/json" \
+            -X PATCH \
+            -d '{"categories":{"firefox":["other"],"android":["other"]}}' \
+            "$base/addons/addon/biliwebandroidstream%40example.invalid/"
           status="$(curl -sS -o /tmp/amo-response.json -w '%{http_code}' \
             -H "$auth" \
             -H "Content-Type: application/json" \
