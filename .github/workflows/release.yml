@@ -118,12 +118,17 @@ jobs:
             exit 1
           fi
           # Listed versions require add-on metadata (categories) to be set.
-          curl -sS -o /tmp/amo-addon.json -w '%{http_code}\n' \
+          patch_status="$(curl -sS -o /tmp/amo-addon.json -w '%{http_code}' \
             -H "$auth" \
             -H "Content-Type: application/json" \
             -X PATCH \
             -d '{"categories":{"firefox":["other"],"android":["other"]}}' \
-            "$base/addons/addon/biliwebandroidstream%40example.invalid/"
+            "$base/addons/addon/biliwebandroidstream%40example.invalid/")"
+          cat /tmp/amo-addon.json
+          if [ "$patch_status" -ge 400 ]; then
+            echo "AMO metadata update failed with HTTP $patch_status" >&2
+            exit 1
+          fi
           status="$(curl -sS -o /tmp/amo-response.json -w '%{http_code}' \
             -H "$auth" \
             -H "Content-Type: application/json" \
