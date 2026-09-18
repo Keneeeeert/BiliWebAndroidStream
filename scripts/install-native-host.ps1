@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$root = Split-Path -Parent (Split-Path -Parent $scriptDir)
+$root = Split-Path -Parent $scriptDir
 $source = if ($env:BILI_HELPER_BINARY) { $env:BILI_HELPER_BINARY } else { Join-Path $scriptDir "bili-web-android-stream-helper.exe" }
 if (!(Test-Path $source)) { $source = Join-Path $root "bin\bili-web-android-stream-helper.exe" }
 $install = Join-Path $env:LOCALAPPDATA "BiliWebAndroidStream"
