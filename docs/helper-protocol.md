@@ -7,9 +7,10 @@ little-endian payload length followed by UTF-8 JSON. Payloads are capped at
 
 The helper keeps the imported Android token in its per-user configuration
 directory with restrictive file permissions (`0600` on Unix). It does not
-inspect Firefox profile databases or log token contents. The extension reads
-the user-selected JSON file and sends its text in `set_token`; the helper
-normalizes and stores only the supported token fields.
+inspect Firefox profile databases or log token contents. After an explicit
+user action, the extension reads token JSON or an access key from the
+clipboard and sends the text in `set_token`; the helper normalizes and stores
+only the supported token fields.
 
 ## Requests
 

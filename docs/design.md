@@ -177,7 +177,7 @@ helper 已选择 Rust；protobuf/gRPC 代码和 Native Messaging 边界已在 he
 因此首版不自动读取 Firefox SQLite 数据库或 Android 应用私有文件，也不把 access key 发送给第三方服务。首选项页提供两级流程：
 
 1. **实验性自动化**：用户点击后通过 Firefox cookies API 读取当前 `bilibili.com` 的三项 Cookie，交给本机 helper 调官方 Passport confirm/poll；不注入密码、不访问 Cookie SQLite 文件、不上传第三方。
-2. **手动导入回退**：用户在自己的 Android 客户端或授权工具中获取 access key/token 文件，在首选项页选择本地文件导入。helper 只在本机保存最小必要字段，并提供清除按钮；页面不回显完整 secret。
+2. **手动导入回退**：用户在自己的 Android 客户端或授权工具中获取 access key/token JSON，复制到首选项页后由扩展读取剪贴板导入。helper 只在本机保存最小必要字段，并提供清除按钮；页面不回显完整 secret。
 
 自动化桥已加入项目，但仍标记为实验性；它使用公开资料中的 appkey/appsec，可能随服务端变化，且真实高画质 entitlement 尚未验证。
 
@@ -209,7 +209,7 @@ Firefox 的扩展权限和 Native Messaging 机制本身是可行的：扩展后
 3. 需要实现 appkey 签名和二维码 UI，并处理风控/失效码；
 4. 不能把 Android app secret 硬编码到扩展或公开仓库。
 
-因此自动登录已作为独立实验功能加入首选项页：扩展通过 Firefox cookies API 读取当前 `bilibili.com` 的 `SESSDATA`、`DedeUserID`、`bili_jct`，只在内存中发送给本机 helper；helper 执行 `auth_code → h5/qrcode/confirm → poll`，成功后把返回 token 写入本地 0600 文件。该流程使用公开资料中的 783 Android appkey/appsec，可能随服务端变化，且尚未用真实用户会话验证高画质 entitlement。当前仍保留从 Android 客户端复制 access key 后导入 JSON 的回退流程。
+因此自动登录已作为独立实验功能加入首选项页：扩展通过 Firefox cookies API 读取当前 `bilibili.com` 的 `SESSDATA`、`DedeUserID`、`bili_jct`，只在内存中发送给本机 helper；helper 执行 `auth_code → h5/qrcode/confirm → poll`，成功后把返回 token 写入本地 0600 文件。该流程使用公开资料中的 783 Android appkey/appsec，可能随服务端变化，且尚未用真实用户会话验证高画质 entitlement。当前仍保留从 Android 客户端复制 access key 后在首选项页读取剪贴板导入 JSON 的回退流程。
 
 ## 当前结论
 

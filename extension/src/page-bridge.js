@@ -56,7 +56,12 @@
       let nativeEvent;
       const finish = () => {
         if (!nativeDone || !helperDone) return;
-        if (helperAnswer?.ok && helperAnswer.body) replaceXhrJson(xhr, helperAnswer.body);
+        if (helperAnswer?.ok && helperAnswer.android) {
+          let officialBody = null;
+          try { officialBody = JSON.parse(xhr.responseText); } catch (_) {}
+          const merged = mergeAndroidIntoOfficial(officialBody, helperAnswer.android, helperAnswer.requestedQuality);
+          if (merged) replaceXhrJson(xhr, merged);
+        }
         if (typeof onLoadEnd === "function") onLoadEnd.call(xhr, nativeEvent);
       };
       xhr.onloadend = (event) => {
@@ -97,6 +102,94 @@
   });
 
 
+  // The player's DashBilibiliParser only accepts playinfo bodies whose dash
+  // representations carry MP4 segment_base ranges. The Android response has
+  // them (hydrated by the native helper), but the rest of its shape differs
+  // from the web playinfo the player expects, so instead of building a body
+  // from scratch we splice the Android streams into the official web response
+  // captured from the same request. That keeps every field the parser reads
+  // (sar, start_with_sap, timelength, support_formats, ...) intact.
+  function mergeAndroidIntoOfficial(officialBody, android, requestedQuality) {
+    const streamToRep = (stream) => ({
+      id: stream.quality,
+      baseUrl: stream.base_url,
+      base_url: stream.base_url,
+      backupUrl: stream.backup_urls || [],
+      backup_url: stream.backup_urls || [],
+      mimeType: stream.mime_type,
+      mime_type: stream.mime_type,
+      codecs: stream.codecs || "",
+      codecid: stream.codecid,
+      width: stream.width,
+      height: stream.height,
+      frameRate: stream.frame_rate || "",
+      frame_rate: stream.frame_rate || "",
+      bandwidth: stream.bandwidth,
+      sar: "1:1",
+      startWithSap: 1,
+      start_with_sap: 1,
+      segment_base: stream.segment_base || null,
+      SegmentBase: stream.segment_base ? {
+        Initialization: stream.segment_base.initialization,
+        indexRange: stream.segment_base.index_range
+      } : null
+    });
+    const audioToRep = (item) => ({
+      id: item.id,
+      baseUrl: item.base_url,
+      base_url: item.base_url,
+      backupUrl: item.backup_urls || [],
+      backup_url: item.backup_urls || [],
+      mimeType: item.mime_type,
+      mime_type: item.mime_type,
+      codecs: item.codecs || "mp4a.40.2",
+      codecid: 0,
+      bandwidth: item.bandwidth,
+      sar: "1:1",
+      startWithSap: 1,
+      start_with_sap: 1,
+      segment_base: item.segment_base || null,
+      SegmentBase: item.segment_base ? {
+        Initialization: item.segment_base.initialization,
+        indexRange: item.segment_base.index_range
+      } : null
+    });
+    const availableVideos = (android.streams || []).filter((stream) => stream.segment_base).map(streamToRep);
+    const audio = (android.audio || []).filter((item) => item.segment_base).map(audioToRep);
+    if (!availableVideos.length || !audio.length) return null;
+    const qualities = availableVideos.map((video) => video.id);
+    const target = requestedQuality
+      ? availableVideos.find((video) => video.id === requestedQuality)
+        || availableVideos.filter((video) => video.id <= requestedQuality).sort((a, b) => b.id - a.id)[0]
+      : availableVideos.find((video) => video.id === android.quality) || availableVideos[0];
+    if (!target) return null;
+    const qualityLabel = (quality) => ({
+      16: "360P", 32: "480P", 64: "720P", 74: "720P 60帧", 80: "1080P",
+      112: "1080P 高码率", 116: "1080P 60帧", 120: "4K", 125: "HDR",
+      126: "杜比视界", 127: "8K"
+    }[quality] || `${quality}P`);
+    const body = JSON.parse(JSON.stringify(officialBody));
+    body.data.from = "local_android_grpc";
+    body.data.quality = target.id;
+    // A single representation keeps the player's device ABR probe from
+    // capping the manual quality request back down to 1080P.
+    body.data.dash.video = [target];
+    body.data.dash.audio = audio;
+    body.data.dash.dolby = { type: 0, audio: [] };
+    body.data.dash.flac = null;
+    body.data.accept_quality = qualities;
+    body.data.accept_description = qualities.map(qualityLabel);
+    body.data.support_formats = qualities.map((quality) => ({
+      quality,
+      format: "hdflv2",
+      new_description: qualityLabel(quality),
+      display_desc: qualityLabel(quality),
+      superscript: "",
+      codecs: []
+    }));
+    return body;
+  }
+
   function askHelper(url, method, body) {
     const id = nextId++;
     const parsed = new URL(url, window.location.href);
@@ -123,11 +216,15 @@
         fnval: params.get("fnval") ? Number(params.get("fnval")) : null,
         fourk: params.get("fourk") === "1"
       }, "*");
+      // MP4 range hydration runs in the native helper before the DASH body
+      // can be handed to the player. Keep a bounded escape hatch, but allow
+      // slow CDNs enough time so a valid quality switch is not silently
+      // replaced with the official low-quality response.
       window.setTimeout(() => {
         if (!pending.has(id)) return;
         pending.delete(id);
         resolve({ ok: false, code: "bridge_timeout" });
-      }, 2500);
+      }, 10000);
     });
   }
 
@@ -151,19 +248,29 @@
       return nativeFetch(input, init);
     }
 
-    // The helper is only allowed to replace a response when it explicitly
-    // returns a normalized web-compatible JSON body. Otherwise preserve the
-    // official web response unchanged.
+    // The helper is only allowed to replace a response when it can be merged
+    // into the official web response; otherwise preserve the official one.
     const requestBody = request.method === "GET" || request.method === "HEAD"
       ? null
       : await request.clone().text();
-    const answer = await askHelper(url, request.method, requestBody);
-    if (answer?.ok && answer.body) {
-      return new Response(JSON.stringify(answer.body), {
-        status: 200,
-        headers: { "content-type": "application/json; charset=utf-8" }
-      });
+    const [answer, officialResponse] = await Promise.all([
+      askHelper(url, request.method, requestBody),
+      nativeFetch(input, init).catch(() => null)
+    ]);
+    let officialBody = null;
+    if (officialResponse) {
+      try { officialBody = await officialResponse.clone().json(); } catch (_) {}
     }
+    if (answer?.ok && answer.android && officialBody) {
+      const merged = mergeAndroidIntoOfficial(officialBody, answer.android, answer.requestedQuality);
+      if (merged) {
+        return new Response(JSON.stringify(merged), {
+          status: 200,
+          headers: { "content-type": "application/json; charset=utf-8" }
+        });
+      }
+    }
+    if (officialResponse) return officialResponse;
     return nativeFetch(input, init);
   };
 
@@ -171,14 +278,5 @@
     if (!window.player || typeof window.player.reloadAccess !== "function") return;
     window.clearInterval(accountReloadTimer);
     try { window.player.reloadAccess(); } catch (_) { /* page may not be ready */ }
-    if (typeof window.player.setRequestedQuality === "function") {
-      // The stock web player rejects qn >= 100 through its VIP guide before
-      // issuing the playurl request. The Android response already contains
-      // the authorized stream, so route the public method directly to the
-      // quality state machine and let the normal media pipeline handle it.
-      window.player.requestQuality = function(quality, audio) {
-        return this.setRequestedQuality(quality, audio == null ? null : Number(audio));
-      };
-    }
   }, 500);
 })();

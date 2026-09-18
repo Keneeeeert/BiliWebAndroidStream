@@ -21,7 +21,7 @@
       qn: message.qn,
       fnval: message.fnval,
       fourk: message.fourk
-    });
+    }).catch((error) => ({ ok: false, code: "content_bridge_error", message: String(error) }));
     window.postMessage({
       source: "biliwebandroidstream-content",
       type: "bili-playurl-response",
@@ -33,7 +33,8 @@
   window.addEventListener("message", async (event) => {
     if (event.source !== window || event.data?.source !== "biliwebandroidstream-page") return;
     if (event.data.type !== "bili-playback-auth-request") return;
-    const response = await browser.runtime.sendMessage({ type: "playback-auth" });
+    const response = await browser.runtime.sendMessage({ type: "playback-auth" })
+      .catch((error) => ({ ok: false, code: "content_bridge_error", message: String(error) }));
     window.postMessage({
       source: "biliwebandroidstream-content",
       type: "bili-playback-auth-response",

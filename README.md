@@ -13,8 +13,9 @@
   `auth_code → h5/qrcode/confirm → poll`，并在过期前用
   `/x/passport-login/oauth2/refresh_token` 轮换 token。
 - 网页会员状态和 playurl XHR/fetch 适配，使用 Android DASH 流替换网页播放源。
+- 保留 Android 返回的全部可用画质（1080P 高码率、1080P 60 帧、4K、HDR/杜比视界和 8K 若账号与视频提供），并将安卓流拼接进官方网页 playurl 响应（播放器的 DASH 解析器要求 segment_base 字节范围），每次切换只交付目标 representation，避免网页 ABR 上限把手动切换降回 1080P。
 
-helper 不读取 Firefox profile 数据库、不打印 access key。网页登录态授权桥只在用户点击首选项按钮后，通过 Firefox cookies API 取得三项 Cookie 并交给本机 helper；本地 token JSON 导入仍作为回退流程。
+helper 不读取 Firefox profile 数据库、不打印 access key。网页登录态授权桥只在用户点击首选项按钮后，通过 Firefox cookies API 取得三项 Cookie 并交给本机 helper；用户也可以在首选项页明确点击按钮，从剪贴板导入 token JSON 或访问密钥作为回退流程。
 
 设计稿：[docs/design.md](docs/design.md)
 

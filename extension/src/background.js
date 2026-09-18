@@ -5,9 +5,9 @@ let nativeSequence = 1;
 const nativePending = new Map();
 
 function sendNative(message) {
-  return new Promise((resolve, reject) => {
-    browser.runtime.sendNativeMessage(NATIVE_HOST, message).then(resolve, reject);
-  });
+  const request = browser.runtime.sendNativeMessage(NATIVE_HOST, message);
+  const timer = new Promise((_, reject) => setTimeout(() => reject(new Error("native helper timeout")), 15_000));
+  return Promise.race([request, timer]);
 }
 
 function sendNativePersistent(message) {
@@ -18,22 +18,33 @@ function sendNativePersistent(message) {
       const pending = requestId && nativePending.get(requestId);
       if (!pending) return;
       nativePending.delete(requestId);
+      clearTimeout(pending.timer);
       pending.resolve(response);
     });
     nativePort.onDisconnect.addListener(() => {
       const error = new Error(browser.runtime.lastError?.message || "native host disconnected");
-      for (const pending of nativePending.values()) pending.reject(error);
+      for (const pending of nativePending.values()) {
+        clearTimeout(pending.timer);
+        pending.reject(error);
+      }
       nativePending.clear();
       nativePort = null;
     });
   }
   const requestId = `persistent-${nativeSequence++}`;
   return new Promise((resolve, reject) => {
-    nativePending.set(requestId, { resolve, reject });
+    const timer = setTimeout(() => {
+      const pending = nativePending.get(requestId);
+      if (!pending) return;
+      nativePending.delete(requestId);
+      pending.reject(new Error("native helper timeout"));
+    }, 15_000);
+    nativePending.set(requestId, { resolve, reject, timer });
     try {
       nativePort.postMessage({ ...message, request_id: requestId });
     } catch (error) {
       nativePending.delete(requestId);
+      clearTimeout(timer);
       reject(error);
     }
   });
@@ -48,79 +59,50 @@ function cachePlaybackAuth(response) {
 
 sendNative({ type: "playback_auth" }).then(cachePlaybackAuth).catch(() => {});
 
-browser.webRequest.onBeforeSendHeaders.addListener(
-  (details) => {
-    if (!playbackAuthorization) return {};
-    const headers = details.requestHeaders || [];
-    const existing = headers.find((header) => header.name.toLowerCase() === "authorization");
-    if (existing) existing.value = playbackAuthorization;
-    else headers.push({ name: "Authorization", value: playbackAuthorization });
-    return { requestHeaders: headers };
-  },
-  { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
-  ["blocking", "requestHeaders", "extraHeaders"]
-);
-
-function toWebPlayInfo(response, requestedQuality) {
-  const videos = (response.streams || []).map((stream) => ({
-    id: stream.quality,
-    baseUrl: stream.base_url,
-    base_url: stream.base_url,
-    backupUrl: stream.backup_urls || [],
-    backup_url: stream.backup_urls || [],
-    mimeType: stream.mime_type,
-    mime_type: stream.mime_type,
-    codecs: stream.codecs || "",
-    width: stream.width,
-    height: stream.height,
-    bandwidth: stream.bandwidth
-  }));
-  const audio = (response.audio || []).map((item) => ({
-    id: item.id,
-    baseUrl: item.base_url,
-    base_url: item.base_url,
-    backupUrl: item.backup_urls || [],
-    backup_url: item.backup_urls || [],
-    mimeType: item.mime_type,
-    mime_type: item.mime_type,
-    bandwidth: item.bandwidth
-  }));
-  const qualities = videos.map((item) => item.id);
-  if (requestedQuality && !qualities.some((quality) => quality >= requestedQuality)) {
-    return null;
-  }
-  return {
-    code: 0,
-    message: "OK",
-    ttl: 1,
-    data: {
-      from: "local_android_grpc",
-      result: "suee",
-      message: "",
-      quality: response.quality,
-      format: "dash",
-      timelength: response.duration_ms,
-      accept_format: "dash",
-      accept_description: qualities.map((quality) => `${quality}P`),
-      accept_quality: qualities,
-      dash: {
-        duration: response.duration_ms / 1000,
-        minBufferTime: 1.5,
-        video: videos,
-        audio
+// Two kinds of signed stream URLs flow through the bilivideo hosts and they
+// have opposite header requirements:
+//   - the page's boot-time `__playinfo__` URLs (platform=pc) only work with
+//     completely stock browser headers; mutating them 403s and wedges the
+//     player on "Timeout:20s" before the helper's response even arrives.
+//   - the helper's Android stream URLs (platform=android) 403 as soon as the
+//     request carries a Referer, on most CDN families (upos-*, cn-*-cm,
+//     mountaintoys PCDN) while the mcdn hosts tolerate it.
+// So only touch the requests that are actually ours: strip Referer (and the
+// Sec-Fetch metadata, which some edges dislike) from Android-platform URLs and
+// leave every other request exactly as the page issued it. Origin stays: CDN
+// mirrors echo it into Access-Control-Allow-Origin, which the cross-origin
+// segment XHRs need.
+try {
+  browser.webRequest.onBeforeSendHeaders.addListener(
+    (details) => {
+      if (!/[?&]platform=android(?=&|$)/.test(details.url)) return {};
+      return {
+        requestHeaders: (details.requestHeaders || [])
+          .filter((header) => !["referer", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest"].includes(header.name.toLowerCase()))
+      };
+    },
+    { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
+    ["blocking", "requestHeaders", "extraHeaders"]
+  );
+} catch (_) {
+  // Older Firefox builds may reject the extraHeaders option. Retry without it.
+  try {
+    browser.webRequest.onBeforeSendHeaders.addListener(
+      (details) => {
+        if (!/[?&]platform=android(?=&|$)/.test(details.url)) return {};
+        return {
+          requestHeaders: (details.requestHeaders || [])
+            .filter((header) => !["referer", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest"].includes(header.name.toLowerCase()))
+        };
       },
-      support_formats: qualities.map((quality) => ({
-        quality,
-        format: "dash",
-        display_desc: `${quality}P`,
-        need_login: false,
-        need_vip: false,
-        vip_free: true
-      })),
-      view_info: {}
-    }
-  };
+      { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
+      ["blocking", "requestHeaders"]
+    );
+  } catch (_) {
+    // Native playback remains usable when request-header filtering is absent.
+  }
 }
+
 
 browser.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message.type !== "string") return undefined;
@@ -136,12 +118,13 @@ browser.runtime.onMessage.addListener((message, sender) => {
       fourk: message.fourk == null ? null : Boolean(message.fourk),
       page_url: sender?.tab?.url || ""
     }).then((response) => {
-      // Prime the webRequest header cache before dash.js starts requesting
-      // the returned CDN segments.
-      sendNative({ type: "playback_auth" }).then(cachePlaybackAuth).catch(() => {});
       if (response?.type === "play_url" && response.response) {
-        const body = toWebPlayInfo(response.response, message.qn);
-        return body ? { ok: true, body } : { ok: false, code: "requested_quality_unavailable" };
+        // Hand the raw Android response to the page bridge: the player's
+        // DashBilibiliParser only accepts manifests that carry MP4
+        // segment_base ranges, and the page builds the final body by splicing
+        // the Android streams into the official web response (which already
+        // has every field the parser expects).
+        return { ok: true, android: response.response, requestedQuality: message.qn };
       }
       return response || { ok: false, code: "empty_native_response" };
     }).catch((error) => ({
@@ -206,6 +189,17 @@ browser.runtime.onMessage.addListener((message, sender) => {
     return sendNative({ type: "set_buvid", buvid: message.buvid })
       .then((response) => response || { ok: false, code: "empty_native_response" })
       .catch((error) => ({ ok: false, code: "set_buvid_failed", message: String(error) }));
+  }
+
+  if (message.type === "web-session-status") {
+    return Promise.all([
+      browser.cookies.get({ url: "https://www.bilibili.com/", name: "SESSDATA" }),
+      browser.cookies.get({ url: "https://www.bilibili.com/", name: "DedeUserID" }),
+      browser.cookies.get({ url: "https://www.bilibili.com/", name: "bili_jct" })
+    ]).then(([sessdata, dedeUserId, biliJct]) => ({
+      type: "web_session_status",
+      logged_in: Boolean(sessdata?.value && dedeUserId?.value && biliJct?.value)
+    })).catch((error) => ({ ok: false, code: "web_session_status_failed", message: String(error) }));
   }
 
   if (message.type === "web-cookie-login") {

@@ -4,7 +4,7 @@
 //! experiment. It must be validated against the playback entitlement before
 //! becoming a default login path.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use md5::{Digest, Md5};
 use reqwest::blocking::Client;
@@ -124,7 +124,11 @@ pub struct QrClient {
 impl Default for QrClient {
     fn default() -> Self {
         Self {
-            http: Client::new(),
+            http: Client::builder()
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(20))
+                .build()
+                .expect("valid QR HTTP client configuration"),
             session: None,
         }
     }
