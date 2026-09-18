@@ -76,8 +76,9 @@ jobs:
           files: release/*
 
   publish-amo:
-    # Uploads the same xpi as a new version on addons.mozilla.org (listed
-    # channel). Needs repo secrets AMO_API_KEY / AMO_API_SECRET from
+    # Uploads the same package as a new UNLISTED version on
+    # addons.mozilla.org: auto-signed, never appears in the store directory.
+    # Needs repo secrets AMO_API_KEY / AMO_API_SECRET from
     # https://addons.mozilla.org/developers/addon/api/key/
     if: startsWith(github.ref, 'refs/tags/v')
     needs: extension
@@ -92,7 +93,7 @@ jobs:
         env:
           AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
           AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
-          # Listed versions require a license slug; defaults to the repo's MIT.
+          # Unlisted versions still require a license slug; MIT per LICENSE.
           AMO_LICENSE: ${{ vars.AMO_LICENSE || 'MIT' }}
         run: |
           set -euo pipefail
@@ -114,7 +115,7 @@ jobs:
           # /addons/upload/ (with its channel), poll the upload until the
           # validator has processed it, then attach the upload UUID to the
           # addon as a new version.
-          curl -sS -H "$auth" -F "upload=@${pkg}" -F "channel=listed" \
+          curl -sS -H "$auth" -F "upload=@${pkg}" -F "channel=unlisted" \
             "$base/addons/upload/" > /tmp/amo-upload.json
           uuid="$(python3 -c 'import json; d=json.load(open("/tmp/amo-upload.json")); print(d.get("uuid") if isinstance(d, dict) else "")')"
           if [ -z "$uuid" ]; then
@@ -132,7 +133,7 @@ jobs:
             echo "AMO validation failed for ${pkg}" >&2
             exit 1
           fi
-          # Listed versions require add-on metadata (categories) to be set.
+          # Version create still requires add-on metadata to be set.
           patch_status="$(curl -sS -o /tmp/amo-addon.json -w '%{http_code}' \
             -H "$auth" \
             -H "Content-Type: application/json" \
