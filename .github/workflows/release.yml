@@ -91,10 +91,23 @@ jobs:
             "$AMO_API_KEY" "$jti" "$now" "$((now + 300))" | b64url)"
           sig="$(printf '%s.%s' "$header" "$payload" \
             | openssl dgst -sha256 -hmac "$AMO_API_SECRET" -binary | b64url)"
+          auth="Authorization: JWT ${header}.${payload}.${sig}"
+          base="https://addons.mozilla.org/api/v5"
+          # Two-step upload: POST the file to /addons/upload/, which
+          # validates it and returns an upload UUID, then attach that UUID
+          # to the addon as a new listed version.
+          curl -sS -H "$auth" -F "upload=@${zip}" "$base/addons/upload/" > /tmp/amo-upload.json
+          cat /tmp/amo-upload.json
+          valid="$(python3 -c 'import json;print(json.load(open("/tmp/amo-upload.json")).get("valid"))')"
+          if [ "$valid" != "True" ]; then
+            echo "AMO validation failed for ${zip}" >&2
+            exit 1
+          fi
+          uuid="$(python3 -c 'import json;print(json.load(open("/tmp/amo-upload.json"))["uuid"])')"
           status="$(curl -sS -o /tmp/amo-response.json -w '%{http_code}' \
-            -H "Authorization: JWT ${header}.${payload}.${sig}" \
-            -F "upload=@${zip}" \
-            https://addons.mozilla.org/api/v5/addons/addon/biliwebandroidstream%40example.invalid/versions/)"
+            -H "$auth" \
+            -F "upload=${uuid}" \
+            "$base/addons/addon/biliwebandroidstream%40example.invalid/versions/")"
           cat /tmp/amo-response.json
           if [ "$status" != 201 ] && [ "$status" != 202 ]; then
             echo "AMO upload failed with HTTP $status" >&2
