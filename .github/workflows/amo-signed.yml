@@ -61,9 +61,10 @@ jobs:
           # signature files under META-INF/.
           python3 -c 'import sys,zipfile; n=zipfile.ZipFile(sys.argv[1]).namelist(); assert "manifest.json" in n and any(x.startswith("META-INF/") for x in n), "package missing or unsigned"' "$out"
           mkdir -p rel
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir rel --clobber --pattern '*.xpi' \
-            || echo "no existing xpi assets on the release"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir rel --clobber \
+            --pattern '*.xpi' --pattern '*.zip' \
+            || echo "no existing package assets on the release"
           cp "$out" rel/
-          sha256sum rel/*.xpi > rel/SHA256SUMS
+          sha256sum rel/* > rel/SHA256SUMS
           gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber rel/*
           echo "attached ${out} to ${tag}"

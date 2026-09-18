@@ -18,9 +18,9 @@ jobs:
         run: |
           set -euo pipefail
           version="$(python3 -c 'import json;print(json.load(open("extension/manifest.json"))["version"])')"
-          out="BiliWebAndroidStream-v${version}.xpi"
+          out="BiliWebAndroidStream-v${version}-unsigned.zip"
           (cd extension && zip -qr "../${out}" .)
-          echo "xpi=${out}" >> "$GITHUB_ENV"
+          echo "pkg=${out}" >> "$GITHUB_ENV"
       - name: Validate JS syntax
         run: |
           set -euo pipefail
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: BiliWebAndroidStream-firefox
-          path: ${{ env.xpi }}
+          path: ${{ env.pkg }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -98,7 +98,7 @@ jobs:
           set -euo pipefail
           test -n "${AMO_API_KEY:?set the AMO_API_KEY repo secret}" 
           test -n "${AMO_API_SECRET:?set the AMO_API_SECRET repo secret}"
-          xpi="$(ls release/*.xpi)"
+          pkg="$(ls release/*.zip)"
           # AMO expects an HS256 JWT issued from the API key pair.
           b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
           now="$(date +%s)"
@@ -114,7 +114,7 @@ jobs:
           # /addons/upload/ (with its channel), poll the upload until the
           # validator has processed it, then attach the upload UUID to the
           # addon as a new version.
-          curl -sS -H "$auth" -F "upload=@${xpi}" -F "channel=listed" \
+          curl -sS -H "$auth" -F "upload=@${pkg}" -F "channel=listed" \
             "$base/addons/upload/" > /tmp/amo-upload.json
           uuid="$(python3 -c 'import json; d=json.load(open("/tmp/amo-upload.json")); print(d.get("uuid") if isinstance(d, dict) else "")')"
           if [ -z "$uuid" ]; then
@@ -129,7 +129,7 @@ jobs:
           done
           cat /tmp/amo-upload.json
           if [ "$valid" != "True" ]; then
-            echo "AMO validation failed for ${xpi}" >&2
+            echo "AMO validation failed for ${pkg}" >&2
             exit 1
           fi
           # Listed versions require add-on metadata (categories) to be set.
