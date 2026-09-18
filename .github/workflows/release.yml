@@ -44,7 +44,6 @@ jobs:
           mkdir -p "$out"
           cp "target/${{ matrix.target }}/release/bili-web-android-stream-helper" "$out/"
           cp scripts/install-native-host.sh scripts/uninstall-native-host.sh "$out/"
-          cp docs/helper-install.md "$out/"
           chmod +x "$out"/*.sh
           tar -czf "$out.tar.gz" "$out"
       - name: Package Windows helper
@@ -54,7 +53,7 @@ jobs:
           $out = "${{ matrix.archive }}"
           New-Item -ItemType Directory -Force $out | Out-Null
           Copy-Item "target\${{ matrix.target }}\release\bili-web-android-stream-helper.exe" "$out\"
-          Copy-Item scripts\install-native-host.ps1, scripts\uninstall-native-host.ps1, docs\helper-install.md "$out\"
+          Copy-Item scripts\install-native-host.ps1, scripts\uninstall-native-host.ps1 "$out\"
           Compress-Archive -Path $out -DestinationPath "$out.zip" -Force
       - uses: actions/upload-artifact@v4
         with:
