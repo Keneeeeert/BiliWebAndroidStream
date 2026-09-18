@@ -9,59 +9,6 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: helper ${{ matrix.archive }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            archive: biliwebandroidstream-linux-x86_64
-          - os: macos-14
-            target: x86_64-apple-darwin
-            archive: biliwebandroidstream-macos-x86_64
-          - os: macos-14
-            target: aarch64-apple-darwin
-            archive: biliwebandroidstream-macos-aarch64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            archive: biliwebandroidstream-windows-x86_64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - name: Build helper
-        run: cargo build --release --target ${{ matrix.target }}
-      - name: Package Unix helper
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          out="${{ matrix.archive }}"
-          mkdir -p "$out"
-          cp "target/${{ matrix.target }}/release/bili-web-android-stream-helper" "$out/"
-          cp scripts/install-native-host.sh scripts/uninstall-native-host.sh "$out/"
-          chmod +x "$out"/*.sh
-          tar -czf "$out.tar.gz" "$out"
-      - name: Package Windows helper
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $out = "${{ matrix.archive }}"
-          New-Item -ItemType Directory -Force $out | Out-Null
-          Copy-Item "target\${{ matrix.target }}\release\bili-web-android-stream-helper.exe" "$out\"
-          Copy-Item scripts\install-native-host.ps1, scripts\uninstall-native-host.ps1 "$out\"
-          Compress-Archive -Path $out -DestinationPath "$out.zip" -Force
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.archive }}
-          path: |
-            ${{ matrix.archive }}.tar.gz
-            ${{ matrix.archive }}.zip
-
   extension:
     name: extension firefox
     runs-on: ubuntu-latest
@@ -74,6 +21,22 @@ jobs:
           out="BiliWebAndroidStream-firefox-v${version}"
           (cd extension && zip -qr "../${out}.zip" .)
           echo "zip=${out}.zip" >> "$GITHUB_ENV"
+      - name: Validate JS syntax
+        run: |
+          set -euo pipefail
+          for f in extension/src/*.js extension/src/lib/*.js extension/options/*.js; do
+            node --check "$f"
+          done
+          python3 -m json.tool extension/manifest.json > /dev/null
+      - name: Verify extension version matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import json;print(json.load(open("extension/manifest.json"))["version"])')"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "extension manifest version ${version} does not match tag ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: BiliWebAndroidStream-firefox
@@ -81,7 +44,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, extension]
+    needs: extension
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,14 +55,6 @@ jobs:
       - name: Checksums
         working-directory: release
         run: sha256sum * > SHA256SUMS
-      - name: Verify extension version matches tag
-        run: |
-          set -euo pipefail
-          version="$(python3 -c 'import json;print(json.load(open("extension/manifest.json"))["version"])')"
-          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
-            echo "extension manifest version ${version} does not match tag ${GITHUB_REF_NAME}" >&2
-            exit 1
-          fi
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

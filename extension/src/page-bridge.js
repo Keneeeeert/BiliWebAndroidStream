@@ -60,6 +60,7 @@
           let officialBody = null;
           try { officialBody = JSON.parse(xhr.responseText); } catch (_) {}
           const merged = mergeAndroidIntoOfficial(officialBody, helperAnswer.android, helperAnswer.requestedQuality);
+          console.log('[BiliWAS] xhr merge answer.ok', helperAnswer.ok, 'code', helperAnswer.code || '', 'merged', merged ? merged.data.quality : 'null');
           if (merged) replaceXhrJson(xhr, merged);
         }
         if (typeof onLoadEnd === "function") onLoadEnd.call(xhr, nativeEvent);
@@ -281,6 +282,7 @@
     }
     if (answer?.ok && answer.android && officialBody) {
       const merged = mergeAndroidIntoOfficial(officialBody, answer.android, answer.requestedQuality);
+      console.log('[BiliWAS] fetch merge answer.ok', answer.ok, 'code', answer.code || '', 'merged', merged ? merged.data.quality : 'null');
       if (merged) {
         return new Response(JSON.stringify(merged), {
           status: 200,

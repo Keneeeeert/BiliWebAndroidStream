@@ -1,12 +1,9 @@
 const accountStatus = document.getElementById("account-status");
 const accountBadge = document.getElementById("account-badge");
 const webStatus = document.getElementById("web-status");
-const helperStatus = document.getElementById("helper-status");
-const helperBadge = document.getElementById("helper-badge");
 const status = document.getElementById("status");
 const qrBox = document.getElementById("qr-box");
 const qrImage = document.getElementById("qr-image");
-const RELEASES_URL = "https://github.com/Ujhhgtg/BiliWebAndroidStream/releases/latest";
 const NATIVE_TIMEOUT_MS = 12_000;
 let qrPolling = false;
 let statusRun = 0;
@@ -27,14 +24,14 @@ async function native(type, payload = {}) {
   try {
     response = await Promise.race([
       browser.runtime.sendMessage({ type, ...payload }),
-      timeout(NATIVE_TIMEOUT_MS, "helper 没有响应")
+      timeout(NATIVE_TIMEOUT_MS, "请求没有响应")
     ]);
   } catch (error) {
     throw new Error(error?.message || String(error));
   }
-  if (response?.type === "error") throw new Error(response.message || response.code || "helper 请求失败");
+  if (response?.type === "error") throw new Error(response.message || response.code || "请求失败");
   if (response?.ok === false || response?.code && response?.type !== "status") {
-    throw new Error(response.message || response.code || "helper 请求失败");
+    throw new Error(response.message || response.code || "请求失败");
   }
   return response;
 }
@@ -60,20 +57,12 @@ function formatExpiry(expiresAt) {
 
 async function refreshStatus() {
   const run = ++statusRun;
-  const [infoResult, tokenResult, webResult] = await Promise.allSettled([
-    native("helper-info"), native("helper-status"), native("web-session-status")
+  const [tokenResult, webResult] = await Promise.allSettled([
+    native("helper-status"), native("web-session-status")
   ]);
   if (run !== statusRun) return;
-  const info = infoResult.status === "fulfilled" ? infoResult.value : null;
   const token = tokenResult.status === "fulfilled" ? tokenResult.value : null;
   const web = webResult.status === "fulfilled" ? webResult.value : null;
-  if (info?.type === "info") {
-    helperStatus.textContent = `${info.name} ${info.version} · ${info.target} · ${(info.capabilities || []).join(", ")}`;
-    setBadge(helperBadge, "已连接", "ok");
-  } else {
-    helperStatus.textContent = infoResult.reason?.message || "helper 未安装、未注册或暂时无响应";
-    setBadge(helperBadge, "不可用", "warn");
-  }
   if (web?.type === "web_session_status") {
     webStatus.textContent = web.logged_in ? "已检测到 bilibili.com Cookie" : "未检测到完整网页 Cookie";
   } else webStatus.textContent = "无法读取网页 Cookie";
@@ -107,7 +96,7 @@ async function importFromClipboard() {
   catch (_) { throw new Error("Firefox 未允许读取剪贴板，请在首选项页授权后重试"); }
   await native("token-import", { token_json: normalizeTokenText(text) });
   await refreshStatus();
-  show("登录态已保存到本机 helper。", "success");
+  show("登录态已保存到本机扩展存储。", "success");
 }
 
 document.getElementById("paste-token").addEventListener("click", (event) =>
@@ -129,20 +118,6 @@ document.getElementById("web-cookie-login").addEventListener("click", (event) =>
   await refreshStatus(); show("网页登录态已同步为 Android 登录态。", "success");
 }));
 
-document.getElementById("helper-refresh").addEventListener("click", (event) => runButton(event.currentTarget, "检查中…", async () => {
-  await refreshStatus(); show("Helper 和登录态检查完成。", "success");
-}));
-document.getElementById("install-helper").addEventListener("click", () => browser.tabs.create({ url: RELEASES_URL }));
-document.getElementById("uninstall-helper").addEventListener("click", (event) => runButton(event.currentTarget, "卸载中…", async () => {
-  if (!confirm("卸载将删除 native helper、它的注册信息以及保存的 Android 登录态。继续吗？")) return;
-  const report = await native("helper-uninstall");
-  await refreshStatus();
-  const state = (flag, yes, no) => (flag ? yes : no);
-  show(
-    `已卸载：注册文件${state(report.manifest_removed, "已删除", "未找到")}，登录态${state(report.token_removed, "已删除", "未找到")}，程序文件${state(report.binary_removed, "已删除", "将由系统在稍后自动清理")}。`,
-    "success"
-  );
-}));
 
 document.getElementById("qr-cancel").addEventListener("click", () => {
   qrPolling = false; qrBox.hidden = true; show("已取消二维码登录。");
@@ -162,7 +137,7 @@ document.getElementById("qr-login").addEventListener("click", (event) => runButt
     if (polled?.state === "authorized") {
       const buvid = await browser.cookies.get({ url: "https://www.bilibili.com/", name: "buvid3" });
       if (buvid?.value) await native("set-buvid", { buvid: buvid.value });
-      qrPolling = false; qrBox.hidden = true; await refreshStatus(); show("Android 登录成功，访问密钥已保存到本机 helper。", "success"); return;
+      qrPolling = false; qrBox.hidden = true; await refreshStatus(); show("Android 登录成功，访问密钥已保存到扩展存储。", "success"); return;
     }
     if (polled?.state === "expired") throw new Error("二维码已过期，请重新申请");
   }
