@@ -135,6 +135,12 @@ jobs:
             -d "{\"upload\":\"${uuid}\",\"license\":\"${AMO_LICENSE}\"}" \
             "$base/addons/addon/biliwebandroidstream%40example.invalid/versions/")"
           cat /tmp/amo-response.json
+          # 409 with "already exists" means a previous run of this tag
+          # already published the version; treat that as success.
+          if [ "$status" = 409 ] && grep -q "already exists" /tmp/amo-response.json; then
+            echo "version already on AMO, nothing to do"
+            exit 0
+          fi
           if [ "$status" != 201 ] && [ "$status" != 202 ]; then
             echo "AMO upload failed with HTTP $status" >&2
             exit 1
