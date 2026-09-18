@@ -77,6 +77,8 @@ jobs:
         env:
           AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
           AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+          # Listed versions require a license slug; defaults to the repo's MIT.
+          AMO_LICENSE: ${{ vars.AMO_LICENSE || 'MIT' }}
         run: |
           set -euo pipefail
           test -n "${AMO_API_KEY:?set the AMO_API_KEY repo secret}" 
@@ -117,7 +119,8 @@ jobs:
           fi
           status="$(curl -sS -o /tmp/amo-response.json -w '%{http_code}' \
             -H "$auth" \
-            -F "upload=${uuid}" \
+            -H "Content-Type: application/json" \
+            -d "{\"upload\":\"${uuid}\",\"license\":\"${AMO_LICENSE}\"}" \
             "$base/addons/addon/biliwebandroidstream%40example.invalid/versions/")"
           cat /tmp/amo-response.json
           if [ "$status" != 201 ] && [ "$status" != 202 ]; then
