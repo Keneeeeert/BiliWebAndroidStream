@@ -157,7 +157,6 @@
     const availableVideos = (android.streams || []).filter((stream) => stream.segment_base).map(streamToRep);
     const audio = (android.audio || []).filter((item) => item.segment_base).map(audioToRep);
     if (!availableVideos.length || !audio.length) return null;
-    const qualities = availableVideos.map((video) => video.id);
     const target = requestedQuality
       ? availableVideos.find((video) => video.id === requestedQuality)
         || availableVideos.filter((video) => video.id <= requestedQuality).sort((a, b) => b.id - a.id)[0]
@@ -168,6 +167,32 @@
       112: "1080P 高码率", 116: "1080P 60帧", 120: "4K", 125: "HDR",
       126: "杜比视界", 127: "8K"
     }[quality] || `${quality}P`);
+    // The quality menu must come from the official response, not from the
+    // Android stream list: the Android playurl only includes representations
+    // at or below the requested qn (8K appears solely when qn=127 is asked
+    // for), and the official list carries the full descriptions
+    // ("8K 超高清", "720P 准高清", ...) plus VIP badges. Selecting a menu
+    // entry the current Android response lacks simply issues a new playurl
+    // request at that qn, which the helper fulfills.
+    const official = officialBody.data;
+    const officialQualities = Array.isArray(official.accept_quality) ? official.accept_quality : [];
+    const officialDescriptions = Array.isArray(official.accept_description) ? official.accept_description : [];
+    const officialFormats = Array.isArray(official.support_formats) ? official.support_formats : [];
+    const androidOnly = availableVideos
+      .map((video) => video.id)
+      .filter((quality) => !officialQualities.includes(quality));
+    const qualities = [...officialQualities, ...androidOnly];
+    const descriptionFor = (quality) =>
+      officialDescriptions[officialQualities.indexOf(quality)] || qualityLabel(quality);
+    const formatFor = (quality) =>
+      officialFormats.find((format) => format.quality === quality) || {
+        quality,
+        format: "hdflv2",
+        new_description: qualityLabel(quality),
+        display_desc: qualityLabel(quality),
+        superscript: "",
+        codecs: []
+      };
     const body = JSON.parse(JSON.stringify(officialBody));
     body.data.from = "local_android_grpc";
     body.data.quality = target.id;
@@ -178,15 +203,8 @@
     body.data.dash.dolby = { type: 0, audio: [] };
     body.data.dash.flac = null;
     body.data.accept_quality = qualities;
-    body.data.accept_description = qualities.map(qualityLabel);
-    body.data.support_formats = qualities.map((quality) => ({
-      quality,
-      format: "hdflv2",
-      new_description: qualityLabel(quality),
-      display_desc: qualityLabel(quality),
-      superscript: "",
-      codecs: []
-    }));
+    body.data.accept_description = qualities.map(descriptionFor);
+    body.data.support_formats = qualities.map(formatFor);
     return body;
   }
 
