@@ -59,3 +59,44 @@ jobs:
         with:
           generate_release_notes: true
           files: release/*
+
+  publish-amo:
+    # Uploads the same zip as a new version on addons.mozilla.org (listed
+    # channel). Needs repo secrets AMO_API_KEY / AMO_API_SECRET from
+    # https://addons.mozilla.org/developers/addon/api/key/
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Upload to AMO
+        env:
+          AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
+          AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${AMO_API_KEY:?set the AMO_API_KEY repo secret}" 
+          test -n "${AMO_API_SECRET:?set the AMO_API_SECRET repo secret}"
+          zip="$(ls release/*.zip)"
+          # AMO expects an HS256 JWT issued from the API key pair.
+          b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+          now="$(date +%s)"
+          jti="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+          header="$(printf '{"alg":"HS256","typ":"JWT"}' | b64url)"
+          payload="$(printf '{"iss":"%s","jti":"%s","iat":%s,"exp":%s}' \
+            "$AMO_API_KEY" "$jti" "$now" "$((now + 300))" | b64url)"
+          sig="$(printf '%s.%s' "$header" "$payload" \
+            | openssl dgst -sha256 -hmac "$AMO_API_SECRET" -binary | b64url)"
+          status="$(curl -sS -o /tmp/amo-response.json -w '%{http_code}' \
+            -H "Authorization: JWT ${header}.${payload}.${sig}" \
+            -F "upload=@${zip}" \
+            https://addons.mozilla.org/api/v5/addons/addon/biliwebandroidstream%40example.invalid/versions/)"
+          cat /tmp/amo-response.json
+          if [ "$status" != 201 ] && [ "$status" != 202 ]; then
+            echo "AMO upload failed with HTTP $status" >&2
+            exit 1
+          fi
