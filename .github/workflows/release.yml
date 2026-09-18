@@ -93,17 +93,28 @@ jobs:
             | openssl dgst -sha256 -hmac "$AMO_API_SECRET" -binary | b64url)"
           auth="Authorization: JWT ${header}.${payload}.${sig}"
           base="https://addons.mozilla.org/api/v5"
-          # Two-step upload: POST the file to /addons/upload/, which
-          # validates it and returns an upload UUID, then attach that UUID
-          # to the addon as a new listed version.
-          curl -sS -H "$auth" -F "upload=@${zip}" "$base/addons/upload/" > /tmp/amo-upload.json
+          # Two-step upload per the AMO v5 API: POST the file to
+          # /addons/upload/ (with its channel), poll the upload until the
+          # validator has processed it, then attach the upload UUID to the
+          # addon as a new version.
+          curl -sS -H "$auth" -F "upload=@${zip}" -F "channel=listed" \
+            "$base/addons/upload/" > /tmp/amo-upload.json
+          uuid="$(python3 -c 'import json; d=json.load(open("/tmp/amo-upload.json")); print(d.get("uuid") if isinstance(d, dict) else "")')"
+          if [ -z "$uuid" ]; then
+            echo "AMO upload rejected:"; cat /tmp/amo-upload.json; exit 1
+          fi
+          valid=""
+          for _ in $(seq 1 60); do
+            curl -sS -H "$auth" "$base/addons/upload/${uuid}/" > /tmp/amo-upload.json
+            valid="$(python3 -c 'import json; d=json.load(open("/tmp/amo-upload.json")); print(d.get("valid") if d.get("processed") else "")')"
+            [ -n "$valid" ] && break
+            sleep 2
+          done
           cat /tmp/amo-upload.json
-          valid="$(python3 -c 'import json;print(json.load(open("/tmp/amo-upload.json")).get("valid"))')"
           if [ "$valid" != "True" ]; then
             echo "AMO validation failed for ${zip}" >&2
             exit 1
           fi
-          uuid="$(python3 -c 'import json;print(json.load(open("/tmp/amo-upload.json"))["uuid"])')"
           status="$(curl -sS -o /tmp/amo-response.json -w '%{http_code}' \
             -H "$auth" \
             -F "upload=${uuid}" \
