@@ -1,0 +1,43 @@
+{
+  "manifest_version": 2,
+  "name": "BiliWebAndroidStream",
+  "version": "0.1.0",
+  "description": "Bridge Bilibili web playback requests to a local Android playback helper.",
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "cookies",
+    "clipboardRead",
+    "tabs",
+    "webRequest",
+    "webRequestBlocking",
+    "https://www.bilibili.com/*",
+    "https://api.bilibili.com/*",
+    "https://grpc.biliapi.net/*",
+    "*://*.bilivideo.com/*",
+    "*://*.bilivideo.cn/*",
+    "*://*.mountaintoys.cn/*"
+  ],
+  "background": {
+    "scripts": ["src/background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.bilibili.com/*"],
+      "js": ["src/content-bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": ["src/page-bridge.js"],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "biliwebandroidstream@example.invalid",
+      "strict_min_version": "109.0"
+    }
+  },
+  "icons": {}
+}

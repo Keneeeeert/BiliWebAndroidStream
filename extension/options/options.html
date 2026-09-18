@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>BiliWebAndroidStream 设置</title>
+  <style>
+    body { max-width: 820px; margin: 2rem auto; padding: 0 1rem; font: 15px system-ui, sans-serif; line-height: 1.6; color: #222; }
+    section { border: 1px solid #ddd; border-radius: 10px; padding: 1rem 1.2rem; margin: 1rem 0; }
+    h1 { margin-bottom: .3rem; } h2 { margin-top: 0; font-size: 1.1rem; }
+    button { margin: .3rem .4rem .3rem 0; padding: .45rem .8rem; cursor: pointer; }
+    textarea { width: 100%; min-height: 5rem; box-sizing: border-box; font-family: monospace; }
+    #status { white-space: pre-wrap; background: #f6f6f6; border-radius: 6px; padding: .7rem; }
+    #qr-box { text-align: center; margin-top: .8rem; } #qr-image { max-width: 360px; background: white; }
+    .muted { color: #666; } .warning { border-left: 4px solid #e67e22; padding-left: .8rem; }
+  </style>
+</head>
+<body>
+  <h1>BiliWebAndroidStream</h1>
+  <p class="muted">让 Firefox 网页播放器使用本机 Android 播放链路。首版支持普通 UGC 视频。</p>
+  <section>
+    <h2>账号与登录态</h2>
+    <p id="account-status">正在检查……</p>
+    <button id="qr-login">Android QR 登录</button>
+    <button id="web-cookie-login">使用当前网页登录态</button>
+    <button id="refresh-button">刷新 Android 登录态</button>
+    <button id="clear-token">清除本机登录态</button>
+    <div id="qr-box" hidden><img id="qr-image" alt="Bilibili Android QR 登录二维码" width="360" height="360"><p>请用哔哩哔哩手机客户端扫描并确认。</p></div>
+    <p class="warning">网页登录态只能在 Passport 接受且未进入刷新状态时换取 Android token。失败时使用 Android QR 登录；访问密钥只保存在本机 helper。</p>
+  </section>
+  <section>
+    <h2>剪贴板导入</h2>
+    <p class="muted">复制完整 token JSON，或直接复制 Android 访问密钥。页面不会显示完整密钥。</p>
+    <textarea id="token-text" placeholder='{"access_key":"…"}'></textarea><br>
+    <button id="paste-token">读取剪贴板并导入</button>
+    <button id="import-token">导入上面的内容</button>
+  </section>
+  <section>
+    <h2>Helper</h2>
+    <p id="helper-status">正在检查 helper……</p>
+    <button id="helper-refresh">重新检查</button>
+    <button id="install-helper">安装 / 更新 helper</button>
+    <button id="uninstall-helper">卸载 helper</button>
+    <p class="muted">浏览器扩展无法直接写入 Native Messaging 注册表或执行二进制文件；安装按钮会打开对应 Release 和安装说明。安装后点击“重新检查”。</p>
+  </section>
+  <p id="status" aria-live="polite">就绪。</p>
+  <script src="options.js"></script>
+</body>
+</html>
