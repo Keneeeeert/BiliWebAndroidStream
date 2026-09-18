@@ -30,6 +30,13 @@ const QR_AUTH_ENDPOINT: &str = "https://passport.bilibili.com/x/passport-tv-logi
 const QR_POLL_ENDPOINT: &str = "https://passport.bilibili.com/x/passport-tv-login/qrcode/poll";
 const REFRESH_ENDPOINT: &str =
     "https://passport.bilibili.com/x/passport-login/oauth2/refresh_token";
+// Client metadata for the TV (云视听小电视) profile that APP_KEY belongs to.
+// The endpoint rejects refresh requests whose mobi_app/build do not match the
+// appkey (-400), and requires a `ts` parameter — the native signer in the
+// app (LibBili.signQuery) injects it when absent.
+const TV_REFRESH_MOBI_APP: &str = "android_tv_yst";
+const TV_REFRESH_BUILD: &str = "108200";
+const TV_REFRESH_CHANNEL: &str = "master";
 
 #[derive(Clone)]
 pub struct QrSession {
@@ -365,6 +372,46 @@ impl QrClient {
             // Pink/TV profile is the helper's compatible default.
             _ => (APP_KEY, APP_SECRET),
         };
+        if app_key == APP_KEY {
+            // Verified against the 云视听小电视 client: the body carries the
+            // TV profile metadata plus a local `ts`, and no access_key — the
+            // refresh_token alone identifies the session.
+            let params = vec![
+                ("refresh_token", refresh_token.to_owned()),
+                ("appkey", APP_KEY.to_owned()),
+                ("build", TV_REFRESH_BUILD.to_owned()),
+                ("channel", TV_REFRESH_CHANNEL.to_owned()),
+                ("mobi_app", TV_REFRESH_MOBI_APP.to_owned()),
+                ("platform", DEVICE_PLATFORM.to_owned()),
+                ("ts", now_ts().to_string()),
+            ];
+            let response = self
+                .http
+                .post(REFRESH_ENDPOINT)
+                .header("User-Agent", USER_AGENT)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .form(&signed_params_with_secret(&params, APP_SECRET))
+                .send()
+                .map_err(|e| HelperError::Network(e.to_string()))?;
+            let status = response.status();
+            let body: Envelope<PollData> = response
+                .json()
+                .map_err(|e| HelperError::Network(e.to_string()))?;
+            if !status.is_success() {
+                return Err(HelperError::Qr(format!(
+                    "token refresh HTTP status {}: {}",
+                    status, body.message
+                )));
+            }
+            if body.code != 0 {
+                return Err(HelperError::Qr(format!(
+                    "token refresh failed: {} {}",
+                    body.code, body.message
+                )));
+            }
+            let token_json = token_json_from_poll(body.data, body.message, Some(app_key))?;
+            return tokens.import_json(&token_json);
+        }
         let sts = self.server_timestamp(app_key, app_secret).unwrap_or(-1);
         let params = vec![
             ("access_key", token.access_key().to_owned()),
