@@ -22,14 +22,17 @@ gRPC 拿到带签名的 DASH 流，扩展再把安卓流拼接进官方网页响
 
 ## 安装
 
-1. 从 [GitHub Releases](https://github.com/Ujhhgtg/BiliWebAndroidStream/releases)
+1. 使用 [Firefox Nightly](https://www.mozilla.org/firefox/channel/desktop/#nightly)，
+   并在 `about:config` 中把 `xpinstall.signatures.required` 设为 `false`
+   （扩展未上架 AMO，正式版 Firefox 拒绝安装未签名扩展）。
+2. 从 [GitHub Releases](https://github.com/Ujhhgtg/BiliWebAndroidStream/releases)
    下载 `BiliWebAndroidStream-firefox-vX.Y.Z.zip` 和对应平台的 helper 压缩包。
-2. Firefox 打开 `about:addons` → 齿轮 → "从文件安装附加组件" 选择扩展 zip
+3. Firefox 打开 `about:addons` → 齿轮 → "从文件安装附加组件" 选择扩展 zip
    （或临时加载用于试用）。
-3. 解压 helper 压缩包，运行里面的 `install-native-host.sh`（Windows 为
+4. 解压 helper 压缩包，运行里面的 `install-native-host.sh`（Windows 为
    `install-native-host.ps1`）注册 Native Messaging host。
-4. 打开扩展首选项页，用哔哩哔哩手机客户端扫码完成 Android 登录。
-5. （重新）打开 Bilibili 视频页，即可在画质菜单选择高画质。
+5. 打开扩展首选项页，用哔哩哔哩手机客户端扫码完成 Android 登录。
+6. （重新）打开 Bilibili 视频页，即可在画质菜单选择高画质。
 
 卸载：在首选项页点击"卸载 Native Helper"，再移除扩展即可，无需运行脚本。
 
