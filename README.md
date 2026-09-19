@@ -13,9 +13,8 @@
   实际播放用 Android 流，每次切换只交付目标 representation，网页 ABR 不会把
   手动选择降回 1080P。8K/杜比等 HEVC 画质由扩展自动声明 HEVC 偏好和 8K
   能力位（`fnval` 0x400）向服务端获取。
-- **Android QR 登录**：首选项页本地渲染二维码，手机扫码后 token 存进扩展的
-  `browser.storage.local`；支持剪贴板 token 导入作为回退，也可一键同步当前
-  网页的 bilibili 登录态。
+- **Android QR 登录**：首选项页本地渲染二维码，手机扫码后 token 存进扩展
+  本地存储；除哔哩哔哩官方接口外不向任何服务器发送。
 - **自动刷新**：token 过期前自动调用 Passport `/x/passport-login/oauth2/refresh_token`。
 - **失败回退**：gRPC 响应异常时，播放器使用官方网页响应，页面可正常播放。
 
