@@ -21,7 +21,7 @@
 
 ## 安装
 
-**Firefox**
+### Firefox
 
 1. 从 [GitHub Releases](https://github.com/Ujhhgtg/BiliWebAndroidStream/releases)
    下载 `BiliWebAndroidStream-vX.Y.Z-signed.xpi`。这个包带 Mozilla 官方签名，
@@ -29,14 +29,12 @@
 2. 把 xpi 拖进 Firefox 窗口，或 `about:addons` → 齿轮 → "从文件安装附加
    组件" 选择该 xpi。
 
-**Chrome / Chromium**
+### Chrome / Chromium
 
 1. 下载 `BiliWebAndroidStream-chrome-vX.Y.Z.zip` 并解压（未上架 Chrome 商店，
    需以开发者模式加载）。
 2. 打开 `chrome://extensions` → 开启"开发者模式" → "加载已解压的扩展程序"
    选择解压出的目录。
-
-**登录**
 
 打开扩展首选项页，用哔哩哔哩手机客户端扫码完成 Android 登录，然后（重新）
 打开 Bilibili 视频页，即可在画质菜单选择高画质。
