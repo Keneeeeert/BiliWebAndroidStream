@@ -66,6 +66,5 @@ Firefox 包同时上传 AMO unlisted 渠道自动签名，签名完成后另一�
 
 ## 隐私
 
-扩展不读取 Firefox profile 数据库，不打印 access key。网页 Cookie 只在用户
-明确点击"同步当前网页登录态"后，经 Firefox cookies API 取三项换入 Android
-token；token 只存在本机扩展存储里，除哔哩哔哩官方接口外不向任何服务器发送。
+扩展不读取 Firefox profile 数据库，不打印 access key。token 只存在本机扩展
+存储里，除哔哩哔哩官方接口（passport 与 gRPC 播放接口）外不向任何服务器发送。
