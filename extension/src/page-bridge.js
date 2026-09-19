@@ -102,7 +102,6 @@
     resolver(message.response);
   });
 
-
   // The player's DashBilibiliParser only accepts playinfo bodies whose dash
   // representations carry MP4 segment_base ranges. The Android response has
   // them (hydrated by the native helper), but the rest of its shape differs

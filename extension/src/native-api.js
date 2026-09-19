@@ -14,6 +14,11 @@
 const BiliNative = (() => {
   'use strict';
 
+  // Firefox's chrome.storage.local silently drops writes (set succeeds, the
+  // value never comes back through get), so storage goes through `browser`,
+  // which Firefox defines natively and Chrome can alias from chrome.
+  const storageApi = globalThis.browser || globalThis.chrome;
+
   const APP_KEY = '4409e2ce8ffd12b8';
   const APP_SECRET = '59b43e04ad6965f34319062b478f83dd';
   const WEB_EXCHANGE_APP_KEY = '783bbb7264451d82';
@@ -49,20 +54,20 @@ const BiliNative = (() => {
   }
 
   // --------------------------------------------------------------- storage
-  // The token lives in browser.storage.local and is read on every use.
+  // The token lives in storage.local and is read on every use.
 
   async function loadToken() {
-    const stored = await browser.storage.local.get(STORAGE_KEY);
+    const stored = await storageApi.storage.local.get(STORAGE_KEY);
     const value = stored && stored[STORAGE_KEY];
     return value && value.access_token ? value : null;
   }
 
   async function saveToken(token) {
-    await browser.storage.local.set({ [STORAGE_KEY]: token });
+    await storageApi.storage.local.set({ [STORAGE_KEY]: token });
   }
 
   async function clearToken() {
-    await browser.storage.local.remove(STORAGE_KEY).catch(() => {});
+    await storageApi.storage.local.remove(STORAGE_KEY).catch(() => {});
     return { type: 'token_cleared' };
   }
 
@@ -79,7 +84,7 @@ const BiliNative = (() => {
     return {
       type: 'info',
       name: 'biliwebandroidstream.pure-js',
-      version: browser.runtime.getManifest().version,
+      version: chrome.runtime.getManifest().version,
       protocol_version: 1,
       target: 'webextension',
       capabilities: ['token', 'qr', 'playback', 'refresh']
@@ -319,9 +324,9 @@ const BiliNative = (() => {
 
   async function webSessionStatus() {
     const [sessdata, dedeUserId, biliJct] = await Promise.all([
-      browser.cookies.get({ url: 'https://www.bilibili.com/', name: 'SESSDATA' }),
-      browser.cookies.get({ url: 'https://www.bilibili.com/', name: 'DedeUserID' }),
-      browser.cookies.get({ url: 'https://www.bilibili.com/', name: 'bili_jct' })
+      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'SESSDATA' }),
+      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'DedeUserID' }),
+      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'bili_jct' })
     ]);
     return {
       type: 'web_session_status',
@@ -331,9 +336,9 @@ const BiliNative = (() => {
 
   async function webCookieLogin() {
     const [sessdata, dedeUserId, biliJct] = await Promise.all([
-      browser.cookies.get({ url: 'https://www.bilibili.com/', name: 'SESSDATA' }),
-      browser.cookies.get({ url: 'https://www.bilibili.com/', name: 'DedeUserID' }),
-      browser.cookies.get({ url: 'https://www.bilibili.com/', name: 'bili_jct' })
+      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'SESSDATA' }),
+      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'DedeUserID' }),
+      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'bili_jct' })
     ]);
     if (!sessdata || !dedeUserId || !biliJct) {
       throw new Error('当前 bilibili.com 登录态缺少必要 Cookie');

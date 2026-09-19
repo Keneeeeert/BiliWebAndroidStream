@@ -1,6 +1,6 @@
 (() => {
   const source = document.createElement("script");
-  source.src = browser.runtime.getURL("src/page-bridge.js");
+  source.src = chrome.runtime.getURL("src/page-bridge.js");
   source.dataset.biliWebAndroidStream = "1";
   (document.documentElement || document.head).appendChild(source);
   source.remove();
@@ -11,7 +11,7 @@
     if (!message || message.source !== "biliwebandroidstream-page") return;
     if (message.type !== "bili-playurl-request") return;
 
-    const response = await browser.runtime.sendMessage({
+    const response = await chrome.runtime.sendMessage({
       type: "bili-playurl-request",
       url: message.url,
       method: message.method,
@@ -33,7 +33,7 @@
   window.addEventListener("message", async (event) => {
     if (event.source !== window || event.data?.source !== "biliwebandroidstream-page") return;
     if (event.data.type !== "bili-playback-auth-request") return;
-    const response = await browser.runtime.sendMessage({ type: "playback-auth" })
+    const response = await chrome.runtime.sendMessage({ type: "playback-auth" })
       .catch((error) => ({ ok: false, code: "content_bridge_error", message: String(error) }));
     window.postMessage({
       source: "biliwebandroidstream-content",

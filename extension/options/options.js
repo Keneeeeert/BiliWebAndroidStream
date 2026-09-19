@@ -23,7 +23,7 @@ async function native(type, payload = {}) {
   let response;
   try {
     response = await Promise.race([
-      browser.runtime.sendMessage({ type, ...payload }),
+      chrome.runtime.sendMessage({ type, ...payload }),
       timeout(NATIVE_TIMEOUT_MS, "请求没有响应")
     ]);
   } catch (error) {
@@ -135,7 +135,7 @@ document.getElementById("qr-login").addEventListener("click", (event) => runButt
     if (!qrPolling) return;
     const polled = await native("qr-poll");
     if (polled?.state === "authorized") {
-      const buvid = await browser.cookies.get({ url: "https://www.bilibili.com/", name: "buvid3" });
+      const buvid = await chrome.cookies.get({ url: "https://www.bilibili.com/", name: "buvid3" });
       if (buvid?.value) await native("set-buvid", { buvid: buvid.value });
       qrPolling = false; qrBox.hidden = true; await refreshStatus(); show("Android 登录成功，访问密钥已保存到扩展存储。", "success"); return;
     }

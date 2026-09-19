@@ -1,6 +1,10 @@
 // The former Rust native helper runs as plain JS in this background page
 // (see native-api.js): passport QR login/refresh, the PlayViewUnite gRPC
-// resolver, and token storage in browser.storage.local.
+// resolver, and token storage in chrome.storage.local.
+
+// Both Firefox and Chrome (MV3) define the `chrome` namespace with
+// promise-based APIs, so the code standardizes on `chrome` and the same
+// source builds for both browsers.
 
 const requestOrigins = new Map();
 
@@ -17,62 +21,112 @@ const requestOrigins = new Map();
 // leave every other request exactly as the page issued it. Origin stays: CDN
 // mirrors echo it into Access-Control-Allow-Origin, which the cross-origin
 // segment XHRs need.
-try {
-  browser.webRequest.onBeforeSendHeaders.addListener(
-    (details) => {
-      if (!/[?&]platform=android(_tv_yst)?(?=&|$)/.test(details.url)) return {};
-      return {
-        requestHeaders: (details.requestHeaders || [])
-          .filter((header) => !["referer", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest"].includes(header.name.toLowerCase()))
-      };
-    },
-    { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
-    ["blocking", "requestHeaders", "extraHeaders"]
-  );
-} catch (_) {
-  // Older Firefox builds may reject the extraHeaders option. Retry without it.
+const CDN_DOMAINS = ["bilivideo.com", "bilivideo.cn", "mountaintoys.cn"];
+const ANDROID_URL_FILTER = "[?&]platform=android(_tv_yst)?(&|$)";
+const BILI_API_DOMAINS = ["passport.bilibili.com", "api.bilibili.com", "grpc.biliapi.net"];
+
+// Branch on manifest version: Firefox runs this source as MV2 (blocking
+// webRequest) while Chrome requires MV3 (declarativeNetRequest). Feature-
+// detecting DNR is NOT enough: Firefox 113+ also implements DNR, but its
+// initiatorDomains cannot match moz-extension origins, and Chrome MV3 also
+// exposes chrome.webRequest (observation only) where blocking listeners
+// throw. Only the manifest version separates the two cleanly.
+if (chrome.runtime.getManifest().manifest_version >= 3) {
+  // Chrome MV3: blocking webRequest is gone; equivalent behavior via
+  // declarativeNetRequest session rules. Lookaheads are not RE2, hence the
+  // (&|$) form of the android-platform filter. (Checked first: Chrome also
+  // exposes chrome.webRequest for observation, so a webRequest check first
+  // would misroute Chrome into the listener path below, which throws.)
+  const extensionHost = new URL(chrome.runtime.getURL("")).host;
+  chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [1, 2],
+    addRules: [
+      {
+        id: 1,
+        priority: 1,
+        action: {
+          type: "modifyHeaders",
+          requestHeaders: [
+            { header: "Referer", operation: "remove" },
+            { header: "Sec-Fetch-Site", operation: "remove" },
+            { header: "Sec-Fetch-Mode", operation: "remove" },
+            { header: "Sec-Fetch-Dest", operation: "remove" }
+          ]
+        },
+        condition: {
+          regexFilter: ANDROID_URL_FILTER,
+          requestDomains: CDN_DOMAINS,
+          resourceTypes: ["xmlhttprequest", "media", "other"]
+        }
+      },
+      {
+        id: 2,
+        priority: 1,
+        action: {
+          type: "modifyHeaders",
+          requestHeaders: [{ header: "Origin", operation: "remove" }]
+        },
+        condition: {
+          initiatorDomains: [extensionHost],
+          requestDomains: BILI_API_DOMAINS,
+          resourceTypes: ["xmlhttprequest"]
+        }
+      }
+    ]
+  }).catch((error) => console.log('[BiliWAS] DNR setup failed', String(error)));
+} else if (chrome.webRequest?.onBeforeSendHeaders) {
+  // Firefox: blocking webRequest.
+  const stripAndroidHeaders = (details) => {
+    if (!/[?&]platform=android(_tv_yst)?(?=&|$)/.test(details.url)) return {};
+    return {
+      requestHeaders: (details.requestHeaders || [])
+        .filter((header) => !["referer", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest"].includes(header.name.toLowerCase()))
+    };
+  };
   try {
-    browser.webRequest.onBeforeSendHeaders.addListener(
+    chrome.webRequest.onBeforeSendHeaders.addListener(
+      stripAndroidHeaders,
+      { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
+      ["blocking", "requestHeaders", "extraHeaders"]
+    );
+  } catch (_) {
+    // Older Firefox builds may reject the extraHeaders option. Retry without it.
+    try {
+      chrome.webRequest.onBeforeSendHeaders.addListener(
+        stripAndroidHeaders,
+        { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
+        ["blocking", "requestHeaders"]
+      );
+    } catch (_) {
+      // Native playback remains usable when request-header filtering is absent.
+    }
+  }
+  // The extension's background fetches carry `Origin: moz-extension://...`,
+  // which bilibili's WAF answers with an HTML block page instead of JSON (the
+  // page context works because it sends the site origin). Strip the Origin for
+  // passport/api requests that originate from this extension; the endpoints
+  // are origin-agnostic (they authenticate via signed params / access_key).
+  try {
+    chrome.webRequest.onBeforeSendHeaders.addListener(
       (details) => {
-        if (!/[?&]platform=android(_tv_yst)?(?=&|$)/.test(details.url)) return {};
+        const originUrl = details.originUrl || details.documentUrl || "";
+        if (!originUrl.startsWith("moz-extension://")) return {};
         return {
-          requestHeaders: (details.requestHeaders || [])
-            .filter((header) => !["referer", "sec-fetch-site", "sec-fetch-mode", "sec-fetch-dest"].includes(header.name.toLowerCase()))
+          requestHeaders: (details.requestHeaders || []).filter(
+            (header) => header.name.toLowerCase() !== "origin"
+          )
         };
       },
-      { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
+      { urls: ["https://passport.bilibili.com/*", "https://api.bilibili.com/*", "https://grpc.biliapi.net/*"] },
       ["blocking", "requestHeaders"]
     );
   } catch (_) {
-    // Native playback remains usable when request-header filtering is absent.
+    // Without header filtering the WAF may block background requests; the
+    // options page calls would fail while page-context playback still works.
   }
 }
 
-// The extension's background fetches carry `Origin: moz-extension://...`,
-// which bilibili's WAF answers with an HTML block page instead of JSON (the
-// page context works because it sends the site origin). Strip the Origin for
-// passport/api requests that originate from this extension; the endpoints are
-// origin-agnostic (they authenticate via signed params / access_key).
-try {
-  browser.webRequest.onBeforeSendHeaders.addListener(
-    (details) => {
-      const originUrl = details.originUrl || details.documentUrl || "";
-      if (!originUrl.startsWith("moz-extension://")) return {};
-      return {
-        requestHeaders: (details.requestHeaders || []).filter(
-          (header) => header.name.toLowerCase() !== "origin"
-        )
-      };
-    },
-    { urls: ["https://passport.bilibili.com/*", "https://api.bilibili.com/*", "https://grpc.biliapi.net/*"] },
-    ["blocking", "requestHeaders"]
-  );
-} catch (_) {
-  // Without header filtering the WAF may block background requests; the
-  // options page calls would fail while page-context playback still works.
-}
-
-browser.runtime.onMessage.addListener((message, sender) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message.type !== "string") return undefined;
   console.log('[BiliWAS] bg message', message.type, 'qn', message.qn ?? '');
 
