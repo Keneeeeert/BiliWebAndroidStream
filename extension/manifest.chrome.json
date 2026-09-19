@@ -7,7 +7,6 @@
   "permissions": [
     "storage",
     "cookies",
-    "clipboardRead",
     "tabs",
     "declarativeNetRequest"
   ],

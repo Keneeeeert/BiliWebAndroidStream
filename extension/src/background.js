@@ -157,12 +157,6 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     }));
   }
 
-  if (message.type === "token-import") {
-    return BiliNative.importTokenJson(message.token_json)
-      .then((response) => response)
-      .catch((error) => ({ type: "error", code: "invalid_token", message: String(error) }));
-  }
-
   if (message.type === "token-clear") {
     return BiliNative.clearToken()
       .then((response) => response)
@@ -207,18 +201,6 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     return BiliNative.setBuvid(message.buvid)
       .then((response) => response)
       .catch((error) => ({ type: "error", code: "set_buvid_failed", message: String(error) }));
-  }
-
-  if (message.type === "web-session-status") {
-    return BiliNative.webSessionStatus()
-      .then((response) => response)
-      .catch((error) => ({ type: "error", code: "web_session_status_failed", message: String(error) }));
-  }
-
-  if (message.type === "web-cookie-login") {
-    return BiliNative.webCookieLogin()
-      .then((response) => response)
-      .catch((error) => ({ type: "error", code: "web_cookie_login_failed", message: String(error) }));
   }
 
   return undefined;

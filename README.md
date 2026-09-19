@@ -24,8 +24,7 @@
 ### Firefox
 
 1. 从 [GitHub Releases](https://github.com/Ujhhgtg/BiliWebAndroidStream/releases)
-   下载 `BiliWebAndroidStream-vX.Y.Z-signed.xpi`。这个包带 Mozilla 官方签名，
-   任何渠道的 Firefox 都能直接安装，无需 Nightly 或修改任何设置。
+   下载 `BiliWebAndroidStream-vX.Y.Z-signed.xpi`。
 2. 把 xpi 拖进 Firefox 窗口，或 `about:addons` → 齿轮 → "从文件安装附加
    组件" 选择该 xpi。
 

@@ -6,7 +6,6 @@
   "permissions": [
     "storage",
     "cookies",
-    "clipboardRead",
     "tabs",
     "webRequest",
     "webRequestBlocking",

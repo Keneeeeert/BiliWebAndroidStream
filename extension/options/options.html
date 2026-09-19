@@ -61,17 +61,10 @@
     <section class="card">
       <div class="card-head"><div><h2>登录态</h2><p>登录态保存在扩展本地存储中，不会离开本机。</p></div><span id="account-badge" class="pill">检查中</span></div>
       <div class="status-grid">
-        <div class="status-item"><strong>网页登录态</strong><span id="web-status">正在检查……</span></div>
         <div class="status-item"><strong>Android 播放态</strong><span id="account-status">正在检查……</span></div>
       </div>
-      <div class="actions"><button id="qr-login" class="primary">Android QR 登录</button><button id="web-cookie-login">同步当前网页登录态</button><button id="refresh-button">刷新 Android 登录态</button><button id="clear-token" class="danger">清除 Android 登录态</button></div>
+      <div class="actions"><button id="qr-login" class="primary">Android QR 登录</button><button id="refresh-button">刷新 Android 登录态</button><button id="clear-token" class="danger">清除 Android 登录态</button></div>
       <div id="qr-box" hidden><img id="qr-image" alt="Bilibili Android QR 登录二维码"><p>请用哔哩哔哩手机客户端扫描并确认。</p><button id="qr-cancel">取消二维码登录</button></div>
-      <div class="separator"></div><strong>从剪贴板导入</strong><p class="hint">复制完整 token JSON 或 Android access key，然后点击导入。页面不会显示完整密钥。</p>
-      <div class="actions"><button id="paste-token">从剪贴板读取并导入</button></div>
-    </section>
-    <section class="card">
-      <div class="card-head"><div><h2>播放引擎</h2><p>Android 协议（登录、刷新、gRPC 播放请求）全部由扩展内 JS 完成。</p></div><span class="pill ok">内置</span></div>
-      <p class="hint">无需安装任何本机程序；卸载扩展即清除全部数据。</p>
     </section>
     <p id="status" aria-live="polite">正在初始化……</p>
   </main>

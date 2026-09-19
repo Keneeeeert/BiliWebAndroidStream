@@ -1,6 +1,5 @@
 const accountStatus = document.getElementById("account-status");
 const accountBadge = document.getElementById("account-badge");
-const webStatus = document.getElementById("web-status");
 const status = document.getElementById("status");
 const qrBox = document.getElementById("qr-box");
 const qrImage = document.getElementById("qr-image");
@@ -57,50 +56,19 @@ function formatExpiry(expiresAt) {
 
 async function refreshStatus() {
   const run = ++statusRun;
-  const [tokenResult, webResult] = await Promise.allSettled([
-    native("helper-status"), native("web-session-status")
-  ]);
+  const tokenResult = await Promise.allSettled([native("helper-status")]);
   if (run !== statusRun) return;
-  const token = tokenResult.status === "fulfilled" ? tokenResult.value : null;
-  const web = webResult.status === "fulfilled" ? webResult.value : null;
-  if (web?.type === "web_session_status") {
-    webStatus.textContent = web.logged_in ? "已检测到 bilibili.com Cookie" : "未检测到完整网页 Cookie";
-  } else webStatus.textContent = "无法读取网页 Cookie";
+  const token = tokenResult[0].status === "fulfilled" ? tokenResult[0].value : null;
   if (token?.type === "status") {
     accountStatus.textContent = token.configured
       ? `${formatExpiry(token.expires_at)} · 刷新 token：${token.has_refresh_token ? "可用" : "没有"}`
       : "未配置 Android 登录态";
     setBadge(accountBadge, token.configured ? "已配置" : "未配置", token.configured ? "ok" : "warn");
   } else {
-    accountStatus.textContent = tokenResult.reason?.message || "无法读取 Android 登录态";
+    accountStatus.textContent = tokenResult[0].reason?.message || "无法读取 Android 登录态";
     setBadge(accountBadge, "检查失败", "warn");
   }
 }
-
-function normalizeTokenText(raw) {
-  const text = String(raw || "").trim();
-  if (!text) throw new Error("剪贴板为空");
-  try {
-    const value = JSON.parse(text);
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("JSON 必须是对象");
-    return JSON.stringify(value);
-  } catch (_) {
-    if (/^[A-Za-z0-9._~-]{16,256}$/.test(text)) return JSON.stringify({ access_key: text });
-    throw new Error("剪贴板内容不是 token JSON 或 Android access key");
-  }
-}
-
-async function importFromClipboard() {
-  let text;
-  try { text = await navigator.clipboard.readText(); }
-  catch (_) { throw new Error("Firefox 未允许读取剪贴板，请在首选项页授权后重试"); }
-  await native("token-import", { token_json: normalizeTokenText(text) });
-  await refreshStatus();
-  show("登录态已保存到本机扩展存储。", "success");
-}
-
-document.getElementById("paste-token").addEventListener("click", (event) =>
-  runButton(event.currentTarget, "读取中…", importFromClipboard));
 
 document.getElementById("clear-token").addEventListener("click", (event) => runButton(event.currentTarget, "清除中…", async () => {
   if (!confirm("确定清除本机保存的 Android 登录态吗？")) return;
@@ -109,13 +77,6 @@ document.getElementById("clear-token").addEventListener("click", (event) => runB
 
 document.getElementById("refresh-button").addEventListener("click", (event) => runButton(event.currentTarget, "刷新中…", async () => {
   await native("helper-refresh"); await refreshStatus(); show("Android 登录态已刷新。", "success");
-}));
-
-document.getElementById("web-cookie-login").addEventListener("click", (event) => runButton(event.currentTarget, "同步中…", async () => {
-  show("正在使用当前 bilibili.com 网页登录态换取 Android 登录态……");
-  const response = await native("web-cookie-login");
-  if (response?.type !== "qr_polled" || response.state !== "authorized") throw new Error(response?.message || "网页登录态未能换取 Android token");
-  await refreshStatus(); show("网页登录态已同步为 Android 登录态。", "success");
 }));
 
 

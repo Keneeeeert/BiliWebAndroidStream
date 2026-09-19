@@ -320,61 +320,6 @@ const BiliNative = (() => {
     return body.data.timestamp;
   }
 
-  // ------------------------------------------------- web cookie exchange
-
-  async function webSessionStatus() {
-    const [sessdata, dedeUserId, biliJct] = await Promise.all([
-      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'SESSDATA' }),
-      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'DedeUserID' }),
-      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'bili_jct' })
-    ]);
-    return {
-      type: 'web_session_status',
-      logged_in: Boolean(sessdata && dedeUserId && biliJct)
-    };
-  }
-
-  async function webCookieLogin() {
-    const [sessdata, dedeUserId, biliJct] = await Promise.all([
-      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'SESSDATA' }),
-      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'DedeUserID' }),
-      chrome.cookies.get({ url: 'https://www.bilibili.com/', name: 'bili_jct' })
-    ]);
-    if (!sessdata || !dedeUserId || !biliJct) {
-      throw new Error('当前 bilibili.com 登录态缺少必要 Cookie');
-    }
-    const cookieHeader =
-      `DedeUserID=${dedeUserId.value}; SESSDATA=${sessdata.value}; bili_jct=${biliJct.value}`;
-    const ts = nowTs();
-    const search = signedParams(
-      [['appkey', WEB_EXCHANGE_APP_KEY], ['local_id', LOCAL_ID], ['ts', String(ts)]],
-      WEB_EXCHANGE_APP_SECRET
-    );
-    const authBody = await postJson(QR_AUTH_ENDPOINT, search);
-    if (authBody.code !== 0 || !authBody.data) {
-      throw new Error(`web session auth_code failed: ${authBody.code} ${authBody.message}`);
-    }
-    const confirmBody = await postJson(
-      'https://passport.bilibili.com/x/passport-tv-login/h5/qrcode/confirm',
-      new URLSearchParams({
-        auth_code: authBody.data.auth_code,
-        build: '7082000',
-        csrf: biliJct.value
-      }),
-      { cookie: cookieHeader }
-    );
-    if (confirmBody.code !== 0) {
-      throw new Error(`web session confirm failed: ${confirmBody.code} ${confirmBody.message}`);
-    }
-    qrSession = {
-      auth_code: authBody.data.auth_code,
-      url: authBody.data.url,
-      app_key: WEB_EXCHANGE_APP_KEY,
-      app_secret: WEB_EXCHANGE_APP_SECRET
-    };
-    return qrPoll();
-  }
-
   // -------------------------------------------------------------- playback
 
   // ---- protobuf encoding ----
@@ -696,8 +641,6 @@ const BiliNative = (() => {
     refresh,
     qrStart,
     qrPoll,
-    webSessionStatus,
-    webCookieLogin,
     resolvePlayUrl,
     playbackAuth
   };
