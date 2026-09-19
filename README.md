@@ -1,11 +1,11 @@
 # BiliWebAndroidStream
 
-让 Firefox 网页播放器改用 Bilibili Android 端播放链路的项目：Firefox 扩展在
-后台页内直接走 Android `PlayViewUnite` gRPC 拿到带签名的 DASH 流，再把安卓流
-拼接进官方网页响应交给播放器。
+让浏览器网页播放器改用 Bilibili Android 端播放链路的项目：扩展（Firefox 与
+Chrome）在后台直接走 Android `PlayViewUnite` gRPC 拿到带签名的 DASH 流，再把
+安卓流拼接进官方网页响应交给播放器。
 
-已在 Firefox（Linux）上端到端验证：1080P 高码率、1080P 60 帧、4K
-（4096×2160）与 8K（7680×4320）均可播放和手动切换。
+已在 Firefox 与 Chromium（Linux）上端到端验证：1080P 高码率、1080P 60 帧、
+4K（4096×2160）与 8K（7680×4320）均可播放和手动切换。
 
 ## 功能
 

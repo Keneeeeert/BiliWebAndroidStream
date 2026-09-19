@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "BiliWebAndroidStream",
   "version": "0.2.4",
-  "description": "Bridge Bilibili web playback requests to the Bilibili Android playback pipeline.",
+  "description": "Play Bilibili web videos through the Bilibili Android DASH pipeline.",
   "minimum_chrome_version": "102",
   "permissions": [
     "storage",

@@ -136,12 +136,13 @@ jobs:
             echo "AMO validation failed for ${pkg}" >&2
             exit 1
           fi
-          # Version create still requires add-on metadata to be set.
+          # Version create still requires add-on metadata to be set; keep the
+          # store summary in sync with the manifest description.
           patch_status="$(curl -sS -o /tmp/amo-addon.json -w '%{http_code}' \
             -H "$auth" \
             -H "Content-Type: application/json" \
             -X PATCH \
-            -d '{"categories":{"firefox":["other"],"android":["other"]}}' \
+            -d '{"categories":{"firefox":["other"],"android":["other"]},"summary":"Play Bilibili web videos through the Bilibili Android DASH pipeline."}' \
             "$base/addons/addon/biliwebandroidstream%40example.invalid/")"
           cat /tmp/amo-addon.json
           if [ "$patch_status" -ge 400 ]; then
