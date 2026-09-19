@@ -61,8 +61,7 @@ Firefox 包同时上传 AMO unlisted 渠道自动签名，签名完成后另一�
   oauth2 token 刷新（TV appkey 档参数 + `ts`）、`PlayViewUnite` gRPC
   （`grpc.biliapi.net`，5 字节 gRPC 帧 + base64 protobuf 元数据头，
   `identify_v1 <access_key>` 授权）；请求参数签名即
-  `md5(排序后的 urlencode query + appsec)`。token 存
-  `browser.storage.local`。
+  `md5(排序后的 urlencode query + appsec)`。token 存扩展本地存储。
 
 ## 隐私
 
