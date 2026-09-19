@@ -1,3 +1,9 @@
+// Standardize on `chrome` for cross-browser code (see background.js), except
+// runtime messaging: Firefox's chrome.runtime.sendMessage is callback-style
+// and does not carry promise responses, so messaging goes through `browser`
+// when available.
+const messaging = globalThis.browser || globalThis.chrome;
+
 const accountStatus = document.getElementById("account-status");
 const accountBadge = document.getElementById("account-badge");
 const status = document.getElementById("status");
@@ -22,13 +28,14 @@ async function native(type, payload = {}) {
   let response;
   try {
     response = await Promise.race([
-      chrome.runtime.sendMessage({ type, ...payload }),
+      messaging.runtime.sendMessage({ type, ...payload }),
       timeout(NATIVE_TIMEOUT_MS, "请求没有响应")
     ]);
   } catch (error) {
     throw new Error(error?.message || String(error));
   }
   if (response?.type === "error") throw new Error(response.message || response.code || "请求失败");
+  if (response == null) throw new Error("后台无响应");
   if (response?.ok === false || response?.code && response?.type !== "status") {
     throw new Error(response.message || response.code || "请求失败");
   }

@@ -126,7 +126,10 @@ if (chrome.runtime.getManifest().manifest_version >= 3) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, sender) => {
+// Firefox's chrome.runtime.onMessage does not honor promise returns from
+// listeners; browser.runtime.onMessage (Chrome: chrome) does.
+const messaging = globalThis.browser || globalThis.chrome;
+messaging.runtime.onMessage.addListener((message, sender) => {
   if (!message || typeof message.type !== "string") return undefined;
   console.log('[BiliWAS] bg message', message.type, 'qn', message.qn ?? '');
 
