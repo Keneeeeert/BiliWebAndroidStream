@@ -142,7 +142,7 @@ jobs:
             -H "$auth" \
             -H "Content-Type: application/json" \
             -X PATCH \
-            -d '{"categories":{"firefox":["other"],"android":["other"]},"summary":"Play Bilibili web videos through the Bilibili Android DASH pipeline."}' \
+            -d '{"categories":{"firefox":["other"],"android":["other"]},"summary":{"en-US":"Play Bilibili web videos through the Bilibili Android DASH pipeline."}}' \
             "$base/addons/addon/biliwebandroidstream%40example.invalid/")"
           cat /tmp/amo-addon.json
           if [ "$patch_status" -ge 400 ]; then
