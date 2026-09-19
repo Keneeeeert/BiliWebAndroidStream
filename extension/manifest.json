@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "BiliWebAndroidStream",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Play Bilibili web videos through the Bilibili Android DASH pipeline.",
   "permissions": [
     "storage",
@@ -9,15 +9,7 @@
     "tabs",
     "webRequest",
     "webRequestBlocking",
-    "https://www.bilibili.com/*",
-    "https://api.bilibili.com/*",
-    "https://passport.bilibili.com/*",
-    "https://grpc.biliapi.net/*",
-    "*://*.bilivideo.com/*",
-    "*://*.bilivideo.cn/*",
-    "*://*.mountaintoys.cn/*",
-    "*://*.akamaized.net/*",
-    "*://*.szbdyd.com/*"
+    "<all_urls>"
   ],
   "background": {
     "scripts": [

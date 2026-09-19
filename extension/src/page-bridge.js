@@ -162,6 +162,11 @@
         || availableVideos.filter((video) => video.id <= requestedQuality).sort((a, b) => b.id - a.id)[0]
       : availableVideos.find((video) => video.id === android.quality) || availableVideos[0];
     if (!target) return null;
+    // If hydration failed for the requested representation, delivering a much
+    // lower Android quality would silently degrade playback; fall back to the
+    // official response instead (e.g. PCDN hosts that the background cannot
+    // reach yield only low-qin streams).
+    if (requestedQuality && target.id < requestedQuality) return null;
     const qualityLabel = (quality) => ({
       16: "360P", 32: "480P", 64: "720P", 74: "720P 60帧", 80: "1080P",
       112: "1080P 高码率", 116: "1080P 60帧", 120: "4K", 125: "HDR",

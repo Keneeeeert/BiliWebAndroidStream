@@ -21,7 +21,11 @@ const requestOrigins = new Map();
 // leave every other request exactly as the page issued it. Origin stays: CDN
 // mirrors echo it into Access-Control-Allow-Origin, which the cross-origin
 // segment XHRs need.
-const CDN_DOMAINS = ["bilivideo.com", "bilivideo.cn", "mountaintoys.cn"];
+// Match the android-platform marker on ANY host: the gRPC reply may return
+// PCDN proxies on arbitrary domains (e.g. nexusedgeio.com proxies), which are
+// indistinguishable from official CDN hosts by domain alone. The platform
+// parameter itself is the precise discriminator (official boot URLs are
+// platform=pc and are left untouched).
 const ANDROID_URL_FILTER = "[?&]platform=android(_tv_yst)?(&|$)";
 const BILI_API_DOMAINS = ["passport.bilibili.com", "api.bilibili.com", "grpc.biliapi.net"];
 
@@ -55,7 +59,6 @@ if (chrome.runtime.getManifest().manifest_version >= 3) {
         },
         condition: {
           regexFilter: ANDROID_URL_FILTER,
-          requestDomains: CDN_DOMAINS,
           resourceTypes: ["xmlhttprequest", "media", "other"]
         }
       },
@@ -86,7 +89,7 @@ if (chrome.runtime.getManifest().manifest_version >= 3) {
   try {
     chrome.webRequest.onBeforeSendHeaders.addListener(
       stripAndroidHeaders,
-      { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
+      { urls: ["*://*/*"] },
       ["blocking", "requestHeaders", "extraHeaders"]
     );
   } catch (_) {
@@ -94,7 +97,7 @@ if (chrome.runtime.getManifest().manifest_version >= 3) {
     try {
       chrome.webRequest.onBeforeSendHeaders.addListener(
         stripAndroidHeaders,
-        { urls: ["*://*.bilivideo.com/*", "*://*.bilivideo.cn/*", "*://*.mountaintoys.cn/*"] },
+        { urls: ["*://*/*"] },
         ["blocking", "requestHeaders"]
       );
     } catch (_) {
