@@ -100,7 +100,9 @@ jobs:
           test -n "${AMO_API_SECRET:?set the AMO_API_SECRET repo secret}"
           # Only the Firefox package goes to AMO; the Chrome build has no
           # store presence and is distributed via GitHub Releases.
-          pkg="$(ls release/BiliWebAndroidStream-v*-unsigned.zip)"
+          # Only the Firefox package goes to AMO; the Chrome build has no
+          # store presence and is distributed via GitHub Releases.
+          pkg="$(ls release/BiliWebAndroidStream-firefox-v*-unsigned.zip)"
           # AMO expects an HS256 JWT issued from the API key pair.
           b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
           now="$(date +%s)"

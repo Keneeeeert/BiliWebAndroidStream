@@ -23,13 +23,13 @@
 ### Firefox
 
 1. 从 [GitHub Releases](https://github.com/Ujhhgtg/BiliWebAndroidStream/releases)
-   下载 `BiliWebAndroidStream-vX.Y.Z-signed.xpi`。
+   下载 `BiliWebAndroidStream-firefox-vX.Y.Z-signed.xpi`。
 2. 把 xpi 拖进 Firefox 窗口，或 `about:addons` → 齿轮 → "从文件安装附加
    组件" 选择该 xpi。
 
 ### Chrome / Chromium
 
-1. 下载 `BiliWebAndroidStream-chrome-vX.Y.Z.zip` 并解压（未上架 Chrome 商店，
+1. 下载 `BiliWebAndroidStream-chrome-vX.Y.Z-unsigned.zip` 并解压（未上架 Chrome 商店，
    需以开发者模式加载）。
 2. 打开 `chrome://extensions` → 开启"开发者模式" → "加载已解压的扩展程序"
    选择解压出的目录。
@@ -43,8 +43,8 @@
 scripts/build.sh        # 打包两个浏览器扩展到 dist/
 ```
 
-产出 `dist/BiliWebAndroidStream-v<版本>-unsigned.zip`（Firefox）与
-`dist/BiliWebAndroidStream-chrome-v<版本>.zip`（Chrome，构建时把后台脚本
+产出 `dist/BiliWebAndroidStream-firefox-v<版本>-unsigned.zip`（Firefox）与
+`dist/BiliWebAndroidStream-chrome-v<版本>-unsigned.zip`（Chrome，构建时把后台脚本
 拼接成 MV3 service worker）。CI（`.github/workflows/release.yml`）在推送
 `v*` tag 时校验语法、核对版本号并发布 Release：无签名包直接挂到 Release，
 Firefox 包同时上传 AMO unlisted 渠道自动签名，签名完成后另一个工作流把

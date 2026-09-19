@@ -55,7 +55,7 @@ jobs:
             exit 0
           fi
           url="$(python3 -c "import json;print(json.load(open('ver-${version}.json'))['file']['url'])")"
-          out="BiliWebAndroidStream-v${version}-signed.xpi"
+          out="BiliWebAndroidStream-firefox-v${version}-signed.xpi"
           curl -sSL -H "$auth" "$url" -o "$out"
           # A signed package must be a valid add-on zip carrying Mozilla's
           # signature files under META-INF/.

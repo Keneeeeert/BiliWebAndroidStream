@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 version="$(python3 -c 'import json;print(json.load(open("extension/manifest.json"))["version"])')"
 mkdir -p dist
 
-firefox_out="dist/BiliWebAndroidStream-v${version}-unsigned.zip"
+firefox_out="dist/BiliWebAndroidStream-firefox-v${version}-unsigned.zip"
 rm -f "$firefox_out"
 (cd extension && zip -qr "../${firefox_out}" .)
 echo "built ${firefox_out}"
@@ -32,7 +32,7 @@ parts = [
 ]
 (src / 'background-chrome.js').write_text('\n;\n'.join(p.rstrip() + '\n' for p in parts))
 EOF
-chrome_out="dist/BiliWebAndroidStream-chrome-v${version}.zip"
-rm -f "dist/BiliWebAndroidStream-chrome-v${version}.zip"
+chrome_out="dist/BiliWebAndroidStream-chrome-v${version}-unsigned.zip"
+rm -f "$chrome_out"
 (cd "$chrome_tree" && zip -qr "$OLDPWD/${chrome_out}" .)
 echo "built ${chrome_out}"
